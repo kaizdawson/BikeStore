@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BikeStore.Common\BikeStore.Common.csproj" />
+    <ProjectReference Include="..\BikeStore.Repository\BikeStore.Repository.csproj" />
+  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\BikeStore.Common\BikeStore.Common.csproj" />
+		<ProjectReference Include="..\BikeStore.Repository\BikeStore.Repository.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="CloudinaryDotNet" Version="1.27.8" />
+		<PackageReference Include="Google.Cloud.Storage.V1" Version="4.13.0" />
+		<PackageReference Include="MailKit" Version="4.13.0" />
+		<PackageReference Include="NAudio" Version="2.2.0" />
+		<PackageReference Include="QRCoder" Version="1.4.3" />
+		<PackageReference Include="QuestPDF" Version="2024.12.3" />
+		<PackageReference Include="SkiaSharp" Version="3.119.1" />
+		<PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
+	</ItemGroup>
+</Project>
