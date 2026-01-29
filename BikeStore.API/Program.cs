@@ -95,6 +95,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+
+// --- THÊM ĐOẠN NÀY (Cấu hình Policy) ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp",
+        b => b
+            .WithOrigins("http://localhost:5173") // Cho phép React gọi vào
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -109,6 +121,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
