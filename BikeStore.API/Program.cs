@@ -1,4 +1,5 @@
 ﻿using BikeStore.Common.DTOs;
+using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.DB;
 using BikeStore.Repository.Implementation;
@@ -19,6 +20,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary"));
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddMemoryCache();
 
@@ -37,6 +43,7 @@ builder.Services.AddScoped<IInspectorService, InspectorService>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo

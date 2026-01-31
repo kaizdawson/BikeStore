@@ -1,10 +1,13 @@
 ﻿using BikeStore.Common.DTOs;
 using BikeStore.Common.DTOs.Seller.Bike;
+using BikeStore.Common.DTOs.Seller.Media;
 using BikeStore.Common.Enums;
 using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.Models;
 using BikeStore.Service.Contract;
+using CloudinaryDotNet;
+using Microsoft.AspNetCore.Http;
 
 namespace BikeStore.Service.Implementation;
 
@@ -12,15 +15,18 @@ public class SellerBikeService : ISellerBikeService
 {
     private readonly IGenericRepository<Bike> _bikeRepo;
     private readonly IGenericRepository<Listing> _listingRepo;
+    private readonly IGenericRepository<Media> _mediaRepo;
     private readonly IUnitOfWork _uow;
 
     public SellerBikeService(
         IGenericRepository<Bike> bikeRepo,
         IGenericRepository<Listing> listingRepo,
+        IGenericRepository<Media> mediaRepo,
         IUnitOfWork uow)
     {
         _bikeRepo = bikeRepo;
         _listingRepo = listingRepo;
+        _mediaRepo = mediaRepo;
         _uow = uow;
     }
 
@@ -30,7 +36,9 @@ public class SellerBikeService : ISellerBikeService
         var listing = await _listingRepo.GetFirstByExpression(x => x.Id == listingId && x.UserId == sellerId);
         if (listing == null)
             throw new InvalidOperationException("Listing không tồn tại hoặc không thuộc quyền của bạn.");
-
+        var existedBike = await _bikeRepo.GetFirstByExpression(b => b.ListingId == listingId);
+        if (existedBike != null)
+            throw new InvalidOperationException("1 bài viết chỉ bán 1 xe duy nhất.");
         var bike = new Bike
         {
             Id = Guid.NewGuid(),
@@ -58,7 +66,6 @@ public class SellerBikeService : ISellerBikeService
 
     public async Task<PagedResult<BikeDto>> GetByListingAsync(Guid sellerId, Guid listingId, int pageNumber, int pageSize)
     {
-        
         var listing = await _listingRepo.GetFirstByExpression(x => x.Id == listingId && x.UserId == sellerId);
         if (listing == null)
         {
@@ -77,10 +84,40 @@ public class SellerBikeService : ISellerBikeService
             isAscending: false
         );
 
+        var bikes = res.Items?.ToList() ?? new List<Bike>();
+        var bikeIds = bikes.Select(b => b.Id).ToList();
+
+
+        var mediasRes = await _mediaRepo.GetAllDataByExpression(
+            filter: m => bikeIds.Contains(m.BikeId),
+            pageNumber: 1,
+            pageSize: 5000,
+            orderBy: m => m.Id,
+            isAscending: true
+        );
+
+        var mediaMap = (mediasRes.Items ?? new List<Media>())
+            .GroupBy(m => m.BikeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(m => new SellerMediaDto
+                {
+                    Id = m.Id,
+                    BikeId = m.BikeId,
+                    Image = m.Image,
+                    VideoUrl = m.VideoUrl
+                }).ToList()
+            );
+
         return new PagedResult<BikeDto>
         {
             TotalPages = res.TotalPages,
-            Items = res.Items?.Select(ToDto).ToList()
+            Items = bikes.Select(b =>
+            {
+                var dto = ToDto(b);
+                dto.Medias = mediaMap.TryGetValue(b.Id, out var list) ? list : new List<SellerMediaDto>();
+                return dto;
+            }).ToList()
         };
     }
 
@@ -88,10 +125,28 @@ public class SellerBikeService : ISellerBikeService
     {
         var bike = await _bikeRepo.GetFirstByExpression(b => b.Id == bikeId, b => b.Listing);
         if (bike == null) return null;
-
         if (bike.Listing.UserId != sellerId) return null;
 
-        return ToDto(bike);
+       
+        var mediaRes = await _mediaRepo.GetAllDataByExpression(
+            filter: m => m.BikeId == bikeId,
+            pageNumber: 1,
+            pageSize: 1000,
+            orderBy: m => m.Id,
+            isAscending: true
+        );
+
+        var dto = ToDto(bike);
+
+        dto.Medias = mediaRes.Items?.Select(m => new SellerMediaDto
+        {
+            Id = m.Id,
+            BikeId = m.BikeId,
+            Image = m.Image,
+            VideoUrl = m.VideoUrl
+        }).ToList() ?? new List<SellerMediaDto>();
+
+        return dto;
     }
 
     public async Task<BikeDto?> UpdateAsync(Guid sellerId, Guid bikeId, BikeUpsertDto dto)
@@ -150,4 +205,74 @@ public class SellerBikeService : ISellerBikeService
         BrakeType = b.BrakeType,
         Overall = b.Overall
     };
+
+    public async Task<PagedResult<BikeDto>> GetMyBikesAsync(
+    Guid sellerId,
+    int pageNumber,
+    int pageSize,
+    Guid? listingId = null,
+    string? status = null)
+    {
+        
+        var listingRes = await _listingRepo.GetAllDataByExpression(
+            filter: l => l.UserId == sellerId && (listingId == null || l.Id == listingId.Value),
+            pageNumber: 1,
+            pageSize: 10000,
+            orderBy: l => l.CreatedAt,
+            isAscending: false
+        );
+
+        var listingIds = listingRes.Items?.Select(l => l.Id).ToList() ?? new List<Guid>();
+        if (listingIds.Count == 0)
+        {
+            return new PagedResult<BikeDto> { Items = new List<BikeDto>(), TotalPages = 0 };
+        }
+
+       
+        var bikesRes = await _bikeRepo.GetAllDataByExpression(
+            filter: b =>
+                listingIds.Contains(b.ListingId) &&
+                (string.IsNullOrWhiteSpace(status) || b.Status.ToString() == status),
+            pageNumber: pageNumber,
+            pageSize: pageSize,
+            orderBy: b => b.CreatedAt,
+            isAscending: false
+        );
+
+        var bikes = bikesRes.Items?.ToList() ?? new List<Bike>();
+
+        
+        var bikeIds = bikes.Select(b => b.Id).ToList();
+        var mediasRes = await _mediaRepo.GetAllDataByExpression(
+            filter: m => bikeIds.Contains(m.BikeId),
+            pageNumber: 1,
+            pageSize: 5000,
+            orderBy: m => m.Id,
+            isAscending: true
+        );
+
+        var mediaMap = (mediasRes.Items ?? new List<Media>())
+            .GroupBy(m => m.BikeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(m => new SellerMediaDto
+                {
+                    Id = m.Id,
+                    BikeId = m.BikeId,
+                    Image = m.Image,
+                    VideoUrl = m.VideoUrl
+                }).ToList()
+            );
+
+        return new PagedResult<BikeDto>
+        {
+            TotalPages = bikesRes.TotalPages,
+            Items = bikes.Select(b =>
+            {
+                var dto = ToDto(b);
+                dto.Medias = mediaMap.TryGetValue(b.Id, out var list) ? list : new List<SellerMediaDto>();
+                return dto;
+            }).ToList()
+        };
+    }
 }

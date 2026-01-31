@@ -18,6 +18,6 @@ namespace BikeStore.Common.DTOs.Seller.Listing
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-        public List<BikeDto> Bikes { get; set; } = new();
+        public BikeDto? Bike { get; set; }
     }
 }

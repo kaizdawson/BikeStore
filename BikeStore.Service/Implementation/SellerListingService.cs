@@ -66,6 +66,9 @@ public class SellerListingService : ISellerListingService
         var entity = await _listingRepo.GetFirstByExpression(x => x.Id == listingId && x.UserId == sellerId);
         if (entity == null) return null;
 
+        if (entity.Status != ListingStatusEnum.Draft)
+            throw new InvalidOperationException("Listing đã gửi duyệt/đã hoạt động nên không thể chỉnh sửa nữa.");
+
         entity.Title = dto.Title.Trim();
         entity.Description = dto.Description.Trim();
         entity.UpdatedAt = DateTimeHelper.NowVN();
@@ -80,6 +83,10 @@ public class SellerListingService : ISellerListingService
     {
         var entity = await _listingRepo.GetFirstByExpression(x => x.Id == listingId && x.UserId == sellerId);
         if (entity == null) return false;
+
+
+        if (entity.Status != ListingStatusEnum.Draft)
+            throw new InvalidOperationException("Listing đã gửi duyệt/đã hoạt động nên không thể xoá.");
 
         await _listingRepo.Delete(entity);
         await _uow.SaveChangeAsync();
@@ -98,13 +105,14 @@ public class SellerListingService : ISellerListingService
 
     public async Task<ListingDetailsDto?> GetDetailsAsync(Guid sellerId, Guid listingId)
     {
-        
         var listing = await _listingRepo.GetFirstByExpression(
             x => x.Id == listingId && x.UserId == sellerId,
             x => x.Bikes
         );
 
         if (listing == null) return null;
+
+        var bike = listing.Bikes?.FirstOrDefault(); 
 
         return new ListingDetailsDto
         {
@@ -114,7 +122,7 @@ public class SellerListingService : ISellerListingService
             Status = listing.Status.ToString(),
             CreatedAt = listing.CreatedAt,
             UpdatedAt = listing.UpdatedAt,
-            Bikes = listing.Bikes.Select(ToBikeDto).ToList()
+            Bike = bike == null ? null : ToBikeDto(bike)
         };
     }
 

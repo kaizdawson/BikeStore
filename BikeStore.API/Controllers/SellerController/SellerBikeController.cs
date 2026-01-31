@@ -1,9 +1,8 @@
 ﻿using BikeStore.API.Helpers;
 using BikeStore.Common.DTOs.Seller.Bike;
+using BikeStore.Common.DTOs.Seller.Media;
 using BikeStore.Service.Contract;
-using BikeStore.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BikeStore.API.Controllers.SellerController;
@@ -14,10 +13,26 @@ namespace BikeStore.API.Controllers.SellerController;
 public class SellerBikeController : ControllerBase
 {
     private readonly ISellerBikeService _service;
+    private readonly ICloudinaryService _cloud;
 
-    public SellerBikeController(ISellerBikeService service)
+    public SellerBikeController(ISellerBikeService service, ICloudinaryService cloud)
     {
         _service = service;
+        _cloud = cloud;
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> GetMyBikes(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] Guid? listingId = null,
+    [FromQuery] string? status = null
+    )
+    {
+        var sellerId = ClaimsHelper.GetUserId(HttpContext);
+        var res = await _service.GetMyBikesAsync(sellerId, pageNumber, pageSize, listingId, status);
+        return Ok(res);
     }
 
     [HttpPost]
@@ -66,5 +81,27 @@ public class SellerBikeController : ControllerBase
         var ok = await _service.DeleteAsync(sellerId, bikeId);
         if (!ok) return NotFound(new { message = "Bike không tồn tại hoặc không thuộc quyền." });
         return Ok(new { success = true });
+    }
+
+    [HttpPost("upload-image")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadImage(
+    [FromHeader(Name = "x-bike-id")] Guid bikeId,
+    [FromForm] UploadMediaDto dto)
+    {
+        var sellerId = ClaimsHelper.GetUserId(HttpContext);
+        var res = await _cloud.UploadBikeImageAndSaveAsync(sellerId, bikeId, dto.File);
+        return Ok(res);
+    }
+
+    [HttpPost("upload-video")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadVideo(
+        [FromHeader(Name = "x-bike-id")] Guid bikeId,
+        [FromForm] UploadMediaDto dto)
+    {
+        var sellerId = ClaimsHelper.GetUserId(HttpContext);
+        var res = await _cloud.UploadBikeVideoAndSaveAsync(sellerId, bikeId, dto.File);
+        return Ok(res);
     }
 }
