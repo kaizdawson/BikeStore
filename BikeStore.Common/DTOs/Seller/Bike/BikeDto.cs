@@ -1,4 +1,6 @@
-﻿using System;
+﻿using BikeStore.Common.DTOs.Media;
+using BikeStore.Common.DTOs.Seller.Media;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,5 +26,6 @@ namespace BikeStore.Common.DTOs.Seller.Bike
         public string TireRim { get; set; } = default!;
         public string BrakeType { get; set; } = default!;
         public string Overall { get; set; } = default!;
+        public List<SellerMediaDto> Medias { get; set; } = new();
     }
 }

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using BikeStore.Common.DTOs.Media;
+using BikeStore.Common.DTOs.Seller.Media;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,5 +28,7 @@ namespace BikeStore.Common.DTOs.Inspector
         public string BikeStatus { get; set; } = default!;
         public string ListingStatus { get; set; } = default!;
         public DateTime CreatedAt { get; set; }
+
+        public List<SellerMediaDto> Medias { get; set; } = new();
     }
 }

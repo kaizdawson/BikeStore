@@ -1,5 +1,6 @@
 ﻿using BikeStore.Common.DTOs;
 using BikeStore.Common.DTOs.Inspector;
+using BikeStore.Common.DTOs.Seller.Media;
 using BikeStore.Common.Enums;
 using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
@@ -17,22 +18,24 @@ public class InspectorService : IInspectorService
 {
     private readonly IGenericRepository<Bike> _bikeRepo;
     private readonly IGenericRepository<Inspection> _inspectionRepo;
+    private readonly IGenericRepository<Media> _mediaRepo;
     private readonly IUnitOfWork _uow;
 
     public InspectorService(
         IGenericRepository<Bike> bikeRepo,
         IGenericRepository<Inspection> inspectionRepo,
+        IGenericRepository<Media> mediaRepo,
         IUnitOfWork uow)
     {
         _bikeRepo = bikeRepo;
         _inspectionRepo = inspectionRepo;
+        _mediaRepo = mediaRepo;
         _uow = uow;
     }
 
-    
+
     public async Task<PagedResult<BikePendingInspectionDto>> GetPendingBikesAsync(int pageNumber, int pageSize)
     {
-        
         var res = await _bikeRepo.GetAllDataByExpression(
             filter: b => b.Status == BikeStatusEnum.PendingInspection
                       && b.InspectionId == null
@@ -44,10 +47,35 @@ public class InspectorService : IInspectorService
             includes: b => b.Listing
         );
 
+        var bikes = res.Items?.ToList() ?? new List<Bike>();
+        var bikeIds = bikes.Select(b => b.Id).ToList();
+
+        // Lấy medias cho các bike trong page
+        var mediasRes = await _mediaRepo.GetAllDataByExpression(
+            filter: m => bikeIds.Contains(m.BikeId),
+            pageNumber: 1,
+            pageSize: 5000,
+            orderBy: m => m.Id,
+            isAscending: true
+        );
+
+        var mediaMap = (mediasRes.Items ?? new List<Media>())
+            .GroupBy(m => m.BikeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(m => new SellerMediaDto
+                {
+                    Id = m.Id,
+                    BikeId = m.BikeId,
+                    Image = m.Image,
+                    VideoUrl = m.VideoUrl
+                }).ToList()
+            );
+
         return new PagedResult<BikePendingInspectionDto>
         {
             TotalPages = res.TotalPages,
-            Items = res.Items?.Select(b => new BikePendingInspectionDto
+            Items = bikes.Select(b => new BikePendingInspectionDto
             {
                 Id = b.Id,
                 ListingId = b.ListingId,
@@ -66,7 +94,9 @@ public class InspectorService : IInspectorService
 
                 BikeStatus = b.Status.ToString(),
                 ListingStatus = b.Listing.Status.ToString(),
-                CreatedAt = b.CreatedAt
+                CreatedAt = b.CreatedAt,
+
+                Medias = mediaMap.TryGetValue(b.Id, out var list) ? list : new List<SellerMediaDto>()
             }).ToList()
         };
     }
