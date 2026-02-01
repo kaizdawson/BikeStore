@@ -1,4 +1,4 @@
-﻿using BikeStore.Common.DTOs;
+﻿using BikeStore.Common.DTOs.Buyer;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -39,7 +39,7 @@ builder.Services.AddScoped<ICartItemService, CartItemService>();
 builder.Services.AddScoped<ISellerListingService, SellerListingService>();
 builder.Services.AddScoped<ISellerBikeService, SellerBikeService>();
 builder.Services.AddScoped<IInspectorService, InspectorService>();
-
+builder.Services.AddScoped<IAdminApproveService, AdminApproveService>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

@@ -1,4 +1,4 @@
-﻿using BikeStore.Common.DTOs;
+﻿using BikeStore.Common.DTOs.Buyer;
 using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.Models;
