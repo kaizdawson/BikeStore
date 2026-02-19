@@ -48,7 +48,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "AESP.API",
+        Title = "BikeStore.API",
         Version = "1.0.0"
     });
     c.DescribeAllParametersInCamelCase();
