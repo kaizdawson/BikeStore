@@ -40,7 +40,12 @@ builder.Services.AddScoped<ISellerListingService, SellerListingService>();
 builder.Services.AddScoped<ISellerBikeService, SellerBikeService>();
 builder.Services.AddScoped<IInspectorService, InspectorService>();
 builder.Services.AddScoped<IAdminApproveService, AdminApproveService>();
-builder.Services.AddControllers();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
@@ -119,6 +124,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
+builder.Services.AddHttpContextAccessor();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
