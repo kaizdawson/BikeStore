@@ -23,18 +23,18 @@ namespace BikeStore.Service.Implementation
                 filter: b => b.Status == BikeStatusEnum.Available,
                 pageNumber: pageNumber,
                 pageSize: pageSize,
-                includes: new Expression<Func<Bike, object>>[] { b => b.Medias }
+                includes: new Expression<Func<Bike, object>>[] { b => b.Medias, b => b.Listing }
             );
 
             return result.Items.Select(b => (object)new
             {
                 b.Id,
+                Title = b.Listing?.Title ?? "Không có tiêu đề",
+                b.Price,
                 b.Brand,
                 b.Category,
-                b.Price,
-                b.Overall,
-                b.FrameSize,
-                Thumbnail = b.Medias.Select(m => m.Image).FirstOrDefault() ?? ""
+                Thumbnail = b.Medias.OrderBy(m => m.Id).Select(m => m.Image).FirstOrDefault() ?? "",
+                b.Overall
             }).ToList();
         }
 
