@@ -22,7 +22,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 builder.Services.Configure<CloudinarySettings>(
-    builder.Configuration.GetSection("Cloudinary"));
+    builder.Configuration.GetSection("CloudinarySettings"));
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
 builder.Services.AddScoped<IEmailService, EmailService>();

@@ -128,6 +128,10 @@ public class InspectorService : IInspectorService
         {
             Id = Guid.NewGuid(),
             UserId = inspectorId,
+            Frame = dto.Frame,
+            PaintCondition = dto.PaintCondition,
+            Drivetrain = dto.Drivetrain,
+            Brakes = dto.Brakes,
             Score = dto.Score,
             Comment = dto.Comment,
             InspectionDate = now,
