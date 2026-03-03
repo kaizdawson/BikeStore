@@ -22,8 +22,8 @@ namespace BikeStore.Repository.Models
 
         public DateTime? PaidAt { get; set; }
 
-        public Guid PolicyId { get; set; }
-        public Policy Policy { get; set; } = default!;
+        public Guid? PolicyId { get; set; }
+        public Policy? Policy { get; set; } 
 
         public Review? Review { get; set; }
     }
