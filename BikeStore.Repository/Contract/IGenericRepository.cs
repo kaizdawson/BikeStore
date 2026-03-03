@@ -41,6 +41,6 @@ namespace BikeStore.Repository.Contract
 
 
         IQueryable<T> AsQueryable();
-
+        Task<List<T>> GetListByExpression(Expression<Func<T, bool>> predicate);
     }
 }

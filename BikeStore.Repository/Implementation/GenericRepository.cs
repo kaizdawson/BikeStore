@@ -156,5 +156,10 @@ namespace BikeStore.Repository.Implementation
         {
             return _dbSet.AsQueryable();
         }
+
+        public async Task<List<T>> GetListByExpression(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.Where(predicate).ToListAsync();
+        }
     }
 }
