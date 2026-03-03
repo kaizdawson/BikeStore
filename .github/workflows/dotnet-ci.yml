@@ -1,0 +1,25 @@
+name: .NET CI
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore BikeStore.sln
+
+      - name: Build
+        run: dotnet build BikeStore.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test BikeStore.sln --no-build -c Release
