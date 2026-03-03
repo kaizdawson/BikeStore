@@ -25,6 +25,9 @@ builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("CloudinarySettings"));
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
+builder.Services.Configure<PayOsSettings>(builder.Configuration.GetSection("PayOS"));
+builder.Services.AddHttpClient<IPayOsCheckoutService, PayOsCheckoutService>();
+
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddMemoryCache();
 

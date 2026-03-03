@@ -9,9 +9,10 @@ namespace BikeStore.Common.Enums
     public enum OrderStatusEnum
     {
         Pending = 1,
-        Confirmed = 2,
-        Shipping = 3,
-        Completed = 4,
-        Cancelled = 5
+        Paid = 2,
+        Confirmed = 3,
+        Shipping = 4,
+        Completed = 5,
+        Cancelled = 6
     }
 }
