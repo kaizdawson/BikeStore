@@ -118,7 +118,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
         b => b
-            .WithOrigins("http://localhost:5173") // Cho phép React gọi vào
+            .WithOrigins("http://localhost:5173",
+                         "https://bike-trading-fe-imev.vercel.app") 
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());
