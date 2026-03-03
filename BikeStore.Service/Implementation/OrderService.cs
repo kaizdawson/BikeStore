@@ -85,9 +85,6 @@ namespace BikeStore.Service.Implementation
                     UnitPrice = item.UnitPrice
                 });
 
-                item.Bike.Status = BikeStatusEnum.Sold;
-                await _bikeRepo.Update(item.Bike);
-
                 await _itemRepo.Delete(item);
             }
 
