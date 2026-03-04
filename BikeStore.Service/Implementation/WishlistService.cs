@@ -1,4 +1,5 @@
 ﻿using BikeStore.Common.DTOs.Buyer;
+using BikeStore.Common.Enums;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.Models;
 using BikeStore.Service.Contract;
@@ -61,7 +62,11 @@ namespace BikeStore.Service.Implementation
                 // Thay vì return true, ta ném lỗi để Controller bắt được và hiện thông báo
                 throw new Exception("Xe này đã có trong danh sách yêu thích của bạn.");
             }
-
+            if (bike.Status != BikeStatusEnum.Available)
+            {
+                string statusName = bike.Status.ToString();
+                throw new Exception($"Không thể thêm vào giỏ hàng vì xe hiện đang ở trạng thái: {statusName}");
+            }
             // 3. Tạo mới bản ghi
             var newItem = new Wishlist
             {

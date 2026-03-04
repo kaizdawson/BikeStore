@@ -4,8 +4,10 @@ using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.Models;
 using BikeStore.Service.Contract;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Linq.Expressions;
+using System.Security.Claims;
 
 namespace BikeStore.Service.Implementation
 {
@@ -15,23 +17,39 @@ namespace BikeStore.Service.Implementation
         private readonly IGenericRepository<Cart> _cartRepo;
         private readonly IGenericRepository<CartItem> _itemRepo;
         private readonly IGenericRepository<Bike> _bikeRepo;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public CartItemService(IUnitOfWork unitOfWork,
+
+        public CartItemService(
+            IUnitOfWork unitOfWork,
+            IHttpContextAccessor httpContextAccessor,
             IGenericRepository<Cart> cartRepo,
             IGenericRepository<CartItem> itemRepo,
             IGenericRepository<Bike> bikeRepo)
         {
             _unitOfWork = unitOfWork;
+            _httpContextAccessor = httpContextAccessor;
             _cartRepo = cartRepo;
             _itemRepo = itemRepo;
             _bikeRepo = bikeRepo;
         }
 
-        public async Task<List<CartItemDto>> GetItemsByCartIdAsync(Guid cartId)
+        private Guid GetCurrentUserId()
         {
-            // GetAllDataByExpression trả về PagedResult<T> nên cần truy cập vào .Items
+            var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            return userId == null ? Guid.Empty : Guid.Parse(userId);
+        }
+        public async Task<List<CartItemDto>> GetItemsByCartIdAsync()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) throw new UnauthorizedAccessException();
+
+            var cart = await _cartRepo.GetFirstByExpression(c => c.UserId == userId);
+
+            if (cart == null) return new List<CartItemDto>();
+
             var result = await _itemRepo.GetAllDataByExpression(
-                filter: i => i.CartId == cartId,
+                filter: i => i.CartId == cart.Id,
                 pageNumber: 0, 
                 pageSize: 100,
                 includes: new Expression<Func<CartItem, object>>[] {
@@ -55,6 +73,11 @@ namespace BikeStore.Service.Implementation
         {
             var bike = await _bikeRepo.GetById(bikeId);
             if (bike == null) throw new Exception("Xe không tồn tại trong hệ thống.");
+            if (bike.Status != BikeStatusEnum.Available)
+            {
+                string statusName = bike.Status.ToString(); 
+                throw new Exception($"Không thể thêm vào giỏ hàng vì xe hiện đang ở trạng thái: {statusName}");
+            }
 
             var cart = await _cartRepo.GetFirstByExpression(c => c.UserId == userId);
             if (cart == null)
@@ -101,7 +124,6 @@ namespace BikeStore.Service.Implementation
         }
         public async Task<bool> ToggleSelectionAsync(Guid cartItemId)
         {
-            // 1. Lấy CartItem kèm theo thông tin của Bike để check Status
             var item = await _itemRepo.GetFirstByExpression(
                 filter: i => i.Id == cartItemId,
                 includeProperties: new Expression<Func<CartItem, object>>[] { i => i.Bike }
@@ -109,14 +131,11 @@ namespace BikeStore.Service.Implementation
 
             if (item == null) throw new Exception("Không tìm thấy món hàng.");
 
-            // 2. Nếu người dùng muốn CHỌN (chuyển sang true) nhưng xe không còn Available
-            // Giả sử Status 2 là Available (BikeStatusEnum.Available)
             if (!item.IsSelected && item.Bike.Status != BikeStatusEnum.Available)
             {
                 throw new Exception($"Không thể chọn sản phẩm này vì xe hiện đang {item.Bike.Status} (không còn sẵn sàng).");
             }
 
-            // 3. Thực hiện đảo ngược trạng thái nếu hợp lệ
             item.IsSelected = !item.IsSelected;
 
             await _itemRepo.Update(item);

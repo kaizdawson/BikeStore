@@ -13,10 +13,10 @@ namespace BikeStore.API.Controllers
         private readonly ICartItemService _itemService;
         public CartItemController(ICartItemService itemService) => _itemService = itemService;
 
-        [HttpGet("{cartId}")]
-        public async Task<IActionResult> GetItems(Guid cartId)
+        [HttpGet("")]
+        public async Task<IActionResult> GetItems()
         {
-            var result = await _itemService.GetItemsByCartIdAsync(cartId);
+            var result = await _itemService.GetItemsByCartIdAsync();
             return Ok(result);
         }
 

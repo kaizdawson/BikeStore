@@ -9,7 +9,7 @@ namespace BikeStore.Service.Contract
 {
     public interface ICartItemService
     {
-        Task<List<CartItemDto>> GetItemsByCartIdAsync(Guid cartId);
+        Task<List<CartItemDto>> GetItemsByCartIdAsync();
         Task<bool> AddItemAsync(Guid userId, Guid bikeId);
         Task<bool> RemoveItemAsync(Guid cartItemId);
         Task<bool> ToggleSelectionAsync(Guid cartItemId);
