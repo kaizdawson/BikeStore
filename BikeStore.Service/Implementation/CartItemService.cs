@@ -39,7 +39,7 @@ namespace BikeStore.Service.Implementation
             var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
             return userId == null ? Guid.Empty : Guid.Parse(userId);
         }
-        public async Task<List<CartItemDto>> GetItemsByCartIdAsync()
+        public async Task<List<CartItemDto>> GetCartItemsAsync()
         {
             var userId = GetCurrentUserId();
             if (userId == null) throw new UnauthorizedAccessException();
@@ -50,7 +50,7 @@ namespace BikeStore.Service.Implementation
 
             var result = await _itemRepo.GetAllDataByExpression(
                 filter: i => i.CartId == cart.Id,
-                pageNumber: 0, 
+                pageNumber: 1, 
                 pageSize: 100,
                 includes: new Expression<Func<CartItem, object>>[] {
                     i => i.Bike.Listing,
@@ -65,7 +65,8 @@ namespace BikeStore.Service.Implementation
                 BikeTitle = i.Bike.Listing.Title, 
                 UnitPrice = i.UnitPrice,
                 ImageUrl = i.Bike.Medias.FirstOrDefault()?.Image, 
-                IsSelected = i.IsSelected
+                IsSelected = i.IsSelected,
+                BikeStatus = i.Bike.Status.ToString()
             }).ToList();
         }
 
@@ -141,12 +142,16 @@ namespace BikeStore.Service.Implementation
             await _itemRepo.Update(item);
             return await _unitOfWork.SaveChangeAsync() > 0;
         }
-        public async Task<List<string>> ValidateCartAsync(Guid cartId)
+        public async Task<List<string>> ValidateCartAsync()
         {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) throw new UnauthorizedAccessException("Người dùng chưa đăng nhập.");
+            var cart = await _cartRepo.GetFirstByExpression(c => c.UserId == userId);
+            if (cart == null) return new List<string>();
             var warnings = new List<string>();
 
             var result = await _itemRepo.GetAllDataByExpression(
-                filter: i => i.CartId == cartId,
+                filter: i => i.CartId == cart.Id,
                 pageNumber: 1,           
                 pageSize: 100,           
                 orderBy: null,           

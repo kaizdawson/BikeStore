@@ -16,7 +16,7 @@ namespace BikeStore.API.Controllers
         [HttpGet("")]
         public async Task<IActionResult> GetItems()
         {
-            var result = await _itemService.GetItemsByCartIdAsync();
+            var result = await _itemService.GetCartItemsAsync();
             return Ok(result);
         }
 
@@ -63,10 +63,10 @@ namespace BikeStore.API.Controllers
             }
         }
 
-        [HttpGet("validate/{cartId}")]
-        public async Task<IActionResult> ValidateCart(Guid cartId)
+        [HttpGet("validate")]
+        public async Task<IActionResult> ValidateCart()
         {
-            var warnings = await _itemService.ValidateCartAsync(cartId);
+            var warnings = await _itemService.ValidateCartAsync();
             if (warnings.Any())
             {
                 return Ok(new

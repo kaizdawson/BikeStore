@@ -14,5 +14,6 @@ namespace BikeStore.Common.DTOs.Buyer
         public decimal UnitPrice { get; set; }
         public string? ImageUrl { get; set; }
         public bool IsSelected { get; set; }
+        public string BikeStatus { get; set; } = default!;
     }
 }

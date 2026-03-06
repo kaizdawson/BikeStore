@@ -44,7 +44,7 @@ builder.Services.AddScoped<ISellerBikeService, SellerBikeService>();
 builder.Services.AddScoped<IInspectorService, InspectorService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IBuyerBikeService, BuyerBikeService>();
+builder.Services.AddScoped<IBuyerListingService, BuyerListingService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
