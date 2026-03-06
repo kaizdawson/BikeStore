@@ -19,27 +19,30 @@ public class InspectorService : IInspectorService
     private readonly IGenericRepository<Bike> _bikeRepo;
     private readonly IGenericRepository<Inspection> _inspectionRepo;
     private readonly IGenericRepository<Media> _mediaRepo;
+    private readonly IGenericRepository<Listing> _listingRepo;
     private readonly IUnitOfWork _uow;
 
     public InspectorService(
         IGenericRepository<Bike> bikeRepo,
         IGenericRepository<Inspection> inspectionRepo,
         IGenericRepository<Media> mediaRepo,
+        IGenericRepository<Listing> listingRepo,
         IUnitOfWork uow)
     {
         _bikeRepo = bikeRepo;
         _inspectionRepo = inspectionRepo;
         _mediaRepo = mediaRepo;
+        _listingRepo = listingRepo;
         _uow = uow;
     }
 
 
-    public async Task<PagedResult<BikePendingInspectionDto>> GetPendingBikesAsync(int pageNumber, int pageSize)
+    public async Task<PagedResult<BikePendingInspectionListDto>> GetPendingBikesAsync(int pageNumber, int pageSize)
     {
         var res = await _bikeRepo.GetAllDataByExpression(
             filter: b => b.Status == BikeStatusEnum.PendingInspection
-          && b.InspectionId == null
-          && b.Listing.Status == ListingStatusEnum.Active,
+                      && b.InspectionId == null
+                      && b.Listing.Status == ListingStatusEnum.Active,
             pageNumber: pageNumber,
             pageSize: pageSize,
             orderBy: b => b.CreatedAt,
@@ -49,6 +52,7 @@ public class InspectorService : IInspectorService
 
         var bikes = res.Items?.ToList() ?? new List<Bike>();
         var bikeIds = bikes.Select(b => b.Id).ToList();
+        var listingIds = bikes.Select(b => b.ListingId).Distinct().ToList();
 
         var mediasRes = await _mediaRepo.GetAllDataByExpression(
             filter: m => bikeIds.Contains(m.BikeId),
@@ -58,44 +62,45 @@ public class InspectorService : IInspectorService
             isAscending: true
         );
 
-        var mediaMap = (mediasRes.Items ?? new List<Media>())
+        var listingsRes = await _listingRepo.GetAllDataByExpression(
+            filter: l => listingIds.Contains(l.Id),
+            pageNumber: 1,
+            pageSize: 5000,
+            orderBy: l => l.CreatedAt,
+            isAscending: false,
+            includes: l => l.User
+        );
+
+        var thumbnailMap = (mediasRes.Items ?? new List<Media>())
             .GroupBy(m => m.BikeId)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(m => new SellerMediaDto
-                {
-                    Id = m.Id,
-                    BikeId = m.BikeId,
-                    Image = m.Image,
-                    VideoUrl = m.VideoUrl
-                }).ToList()
+                g => g.Select(m => m.Image).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
             );
 
-        return new PagedResult<BikePendingInspectionDto>
+        var listingMap = (listingsRes.Items ?? new List<Listing>())
+            .ToDictionary(l => l.Id, l => l);
+
+        return new PagedResult<BikePendingInspectionListDto>
         {
             TotalPages = res.TotalPages,
-            Items = bikes.Select(b => new BikePendingInspectionDto
+            Items = bikes.Select(b =>
             {
-                Id = b.Id,
-                ListingId = b.ListingId,
+                listingMap.TryGetValue(b.ListingId, out var listing);
+                thumbnailMap.TryGetValue(b.Id, out var thumb);
 
-                Category = b.Category,
-                Brand = b.Brand,
-                FrameSize = b.FrameSize,
-                FrameMaterial = b.FrameMaterial,
-                Paint = b.Paint,
-                Groupset = b.Groupset,
-                Operating = b.Operating,
-                TireRim = b.TireRim,
-                BrakeType = b.BrakeType,
-                Overall = b.Overall,
-                Price = b.Price,
-
-                BikeStatus = b.Status.ToString(),
-                ListingStatus = b.Listing.Status.ToString(),
-                CreatedAt = b.CreatedAt,
-
-                Medias = mediaMap.TryGetValue(b.Id, out var list) ? list : new List<SellerMediaDto>()
+                return new BikePendingInspectionListDto
+                {
+                    Id = b.Id,
+                    ListingId = b.ListingId,
+                    BikeName = $"{b.Brand} {b.Category}",
+                    BikeCode = $"XE-{b.Id.ToString("N")[..4].ToUpper()}",
+                    Thumbnail = thumb,
+                    SellerName = listing?.User?.FullName ?? "",
+                    SellerPhoneNumber = listing?.User?.PhoneNumber ?? "",
+                    CreatedAt = b.CreatedAt,
+                    BikeStatus = b.Status.ToString()
+                };
             }).ToList()
         };
     }
