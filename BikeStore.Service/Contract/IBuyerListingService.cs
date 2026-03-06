@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace BikeStore.Service.Contract
 {
-    public interface IBuyerBikeService
+    public interface IBuyerListingService
     {
         Task<List<object>> GetAllAvailableBikesAsync(int pageNumber, int pageSize);
-        Task<object?> GetBikeDetailAsync(Guid id);
+        Task<object?> GetListingDetailByListingIdAsync(Guid listingId);
     }
 }
