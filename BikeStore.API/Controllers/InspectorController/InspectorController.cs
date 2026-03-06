@@ -28,7 +28,21 @@ public class InspectorController : ControllerBase
         return Ok(res);
     }
 
-    
+    [HttpGet("pending-bike-details")]
+    public async Task<IActionResult> GetPendingBikeDetails(
+    [FromHeader(Name = "x-pendingbike-id")] Guid pendingBikeId)
+    {
+        if (pendingBikeId == Guid.Empty)
+            return BadRequest(new { message = "Thiếu header x-pendingbike-id." });
+
+        var res = await _service.GetPendingBikeDetailsAsync(pendingBikeId);
+
+        if (res == null)
+            return NotFound(new { message = "Không tìm thấy bike pending." });
+
+        return Ok(res);
+    }
+
     [HttpPost("approve-bike")]
     public async Task<IActionResult> ApproveBike(
         [FromHeader(Name = "x-bike-id")] Guid bikeId,

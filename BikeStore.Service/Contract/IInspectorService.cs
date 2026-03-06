@@ -11,7 +11,7 @@ namespace BikeStore.Service.Contract
     public interface IInspectorService
     {
         Task<PagedResult<BikePendingInspectionListDto>> GetPendingBikesAsync(int pageNumber, int pageSize);
-
+        Task<BikePendingInspectionDto?> GetPendingBikeDetailsAsync(Guid pendingBikeId);
         Task<(bool Success, string Message)> ApproveBikeAsync(Guid inspectorId, Guid bikeId, ApproveBikeDto dto);
     }
 }

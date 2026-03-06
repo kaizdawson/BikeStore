@@ -105,6 +105,56 @@ public class InspectorService : IInspectorService
         };
     }
 
+    public async Task<BikePendingInspectionDto?> GetPendingBikeDetailsAsync(Guid pendingBikeId)
+    {
+        var bike = await _bikeRepo.GetFirstByExpression(
+            b => b.Id == pendingBikeId
+              && b.Status == BikeStatusEnum.PendingInspection
+              && b.InspectionId == null
+              && b.Listing.Status == ListingStatusEnum.Active,
+            b => b.Listing
+        );
+
+        if (bike == null) return null;
+
+        var mediaRes = await _mediaRepo.GetAllDataByExpression(
+            filter: m => m.BikeId == bike.Id,
+            pageNumber: 1,
+            pageSize: 1000,
+            orderBy: m => m.Id,
+            isAscending: true
+        );
+
+        return new BikePendingInspectionDto
+        {
+            Id = bike.Id,
+            ListingId = bike.ListingId,
+
+            Category = bike.Category,
+            Brand = bike.Brand,
+            FrameSize = bike.FrameSize,
+            FrameMaterial = bike.FrameMaterial,
+            Paint = bike.Paint,
+            Groupset = bike.Groupset,
+            Operating = bike.Operating,
+            TireRim = bike.TireRim,
+            BrakeType = bike.BrakeType,
+            Overall = bike.Overall,
+            Price = bike.Price,
+
+            BikeStatus = bike.Status.ToString(),
+            ListingStatus = bike.Listing.Status.ToString(),
+            CreatedAt = bike.CreatedAt,
+
+            Medias = mediaRes.Items?.Select(m => new SellerMediaDto
+            {
+                Id = m.Id,
+                BikeId = m.BikeId,
+                Image = m.Image,
+                VideoUrl = m.VideoUrl
+            }).ToList() ?? new List<SellerMediaDto>()
+        };
+    }
     public async Task<(bool Success, string Message)> ApproveBikeAsync(Guid inspectorId, Guid bikeId, ApproveBikeDto dto)
     {
         var bike = await _bikeRepo.GetFirstByExpression(
