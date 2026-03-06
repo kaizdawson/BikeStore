@@ -31,17 +31,21 @@ namespace BikeStore.Service.Implementation
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    CreatedAt = DateTimeHelper.NowVN()
+                    CreatedAt = DateTimeHelper.NowVN(),
+                    CartItems = new List<CartItem>()
                 };
                 await _cartRepo.Insert(cart);
                 await _unitOfWork.SaveChangeAsync();
             }
 
+            var selectedItems = cart.CartItems.Where(x => x.IsSelected).ToList();
+
             return new CartDto
             {
                 Id = cart.Id,
                 UserId = cart.UserId,
-                TotalAmount = cart.CartItems.Where(x => x.IsSelected).Sum(x => x.UnitPrice)
+                TotalAmount = selectedItems.Sum(x => x.UnitPrice),
+                SelectedItemCount = selectedItems.Count
             };
         }
     }
