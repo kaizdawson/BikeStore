@@ -38,8 +38,8 @@ public class InspectorService : IInspectorService
     {
         var res = await _bikeRepo.GetAllDataByExpression(
             filter: b => b.Status == BikeStatusEnum.PendingInspection
-                      && b.InspectionId == null
-                      && b.Listing.Status == ListingStatusEnum.PendingApproval,
+          && b.InspectionId == null
+          && b.Listing.Status == ListingStatusEnum.Active,
             pageNumber: pageNumber,
             pageSize: pageSize,
             orderBy: b => b.CreatedAt,
@@ -50,7 +50,6 @@ public class InspectorService : IInspectorService
         var bikes = res.Items?.ToList() ?? new List<Bike>();
         var bikeIds = bikes.Select(b => b.Id).ToList();
 
-        // Lấy medias cho các bike trong page
         var mediasRes = await _mediaRepo.GetAllDataByExpression(
             filter: m => bikeIds.Contains(m.BikeId),
             pageNumber: 1,
@@ -103,7 +102,6 @@ public class InspectorService : IInspectorService
 
     public async Task<(bool Success, string Message)> ApproveBikeAsync(Guid inspectorId, Guid bikeId, ApproveBikeDto dto)
     {
-        
         var bike = await _bikeRepo.GetFirstByExpression(
             b => b.Id == bikeId,
             b => b.Listing
@@ -112,18 +110,20 @@ public class InspectorService : IInspectorService
         if (bike == null)
             return (false, "Không tìm thấy xe (Bike).");
 
-        if (bike.Listing.Status != ListingStatusEnum.PendingApproval)
-            return (false, "Listing của xe này không ở trạng thái chờ kiểm định (PendingApproval).");
+        if (bike.Listing == null)
+            return (false, "Bike chưa liên kết listing.");
+
+        if (bike.Listing.Status != ListingStatusEnum.Active)
+            return (false, "Listing của xe này không ở trạng thái Active.");
 
         if (bike.Status != BikeStatusEnum.PendingInspection)
-            return (false, "Bike không ở trạng thái chờ kiểm định (PendingInspection).");
+            return (false, "Bike không ở trạng thái PendingInspection.");
 
         if (bike.InspectionId != null)
             return (false, "Bike này đã được kiểm định trước đó.");
 
         var now = DateTimeHelper.NowVN();
 
-        
         var inspection = new Inspection
         {
             Id = Guid.NewGuid(),
@@ -140,15 +140,16 @@ public class InspectorService : IInspectorService
 
         await _inspectionRepo.Insert(inspection);
 
-        
+       
         bike.InspectionId = inspection.Id;
-        bike.Status = BikeStatusEnum.Available;
+        bike.Status = BikeStatusEnum.Available; 
         bike.UpdatedAt = now;
-
         await _bikeRepo.Update(bike);
+
+        
 
         await _uow.SaveChangeAsync();
 
-        return (true, "Đã kiểm định thành công. Bike chuyển sang trạng thái Available.");
+        return (true, "Đã kiểm định thành công. Bike chuyển sang Available.");
     }
 }

@@ -59,6 +59,11 @@ public class SellerBikeService : ISellerBikeService
         };
 
         await _bikeRepo.Insert(bike);
+
+        listing.Status = ListingStatusEnum.PendingApproval; 
+        listing.UpdatedAt = DateTimeHelper.NowVN();
+        await _listingRepo.Update(listing);
+
         await _uow.SaveChangeAsync();
 
         return ToDto(bike);
