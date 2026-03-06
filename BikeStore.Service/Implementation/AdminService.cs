@@ -28,10 +28,11 @@ namespace BikeStore.Service.Implementation
             var listing = await _listingRepo.GetById(id);
             if (listing == null) throw new Exception("Không tìm thấy tin đăng.");
 
-            if (listing.Status != ListingStatusEnum.Draft)
+            if (listing.Status != ListingStatusEnum.PendingApproval)
                 throw new Exception("Tin này không ở trạng thái chờ duyệt.");
 
-            listing.Status = dto.IsApproved ? ListingStatusEnum.PendingApproval : ListingStatusEnum.Rejected;
+            listing.Status = dto.IsApproved ? ListingStatusEnum.Active : ListingStatusEnum.Rejected;
+
             listing.UpdatedAt = DateTimeHelper.NowVN();
 
             await _listingRepo.Update(listing);
