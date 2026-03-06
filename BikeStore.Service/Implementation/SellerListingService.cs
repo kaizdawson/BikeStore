@@ -12,11 +12,16 @@ namespace BikeStore.Service.Implementation;
 public class SellerListingService : ISellerListingService
 {
     private readonly IGenericRepository<Listing> _listingRepo;
+    private readonly IGenericRepository<Bike> _bikeRepo;
+    private readonly IGenericRepository<Media> _mediaRepo;
     private readonly IUnitOfWork _uow;
 
-    public SellerListingService(IGenericRepository<Listing> listingRepo, IUnitOfWork uow)
+    public SellerListingService(IGenericRepository<Listing> listingRepo, IUnitOfWork uow, IGenericRepository<Bike> bikeRepo,
+        IGenericRepository<Media> mediaRepo)
     {
         _listingRepo = listingRepo;
+        _bikeRepo = bikeRepo;
+        _mediaRepo = mediaRepo;
         _uow = uow;
     }
 
@@ -48,10 +53,66 @@ public class SellerListingService : ISellerListingService
             isAscending: false
         );
 
+        var listings = res.Items?.ToList() ?? new List<Listing>();
+        var listingIds = listings.Select(x => x.Id).ToList();
+
+        var bikesRes = await _bikeRepo.GetAllDataByExpression(
+            filter: b => listingIds.Contains(b.ListingId),
+            pageNumber: 1,
+            pageSize: 5000,
+            orderBy: b => b.CreatedAt,
+            isAscending: false
+        );
+
+        var bikes = bikesRes.Items?.ToList() ?? new List<Bike>();
+        var bikeIds = bikes.Select(b => b.Id).ToList();
+
+        var mediasRes = await _mediaRepo.GetAllDataByExpression(
+            filter: m => bikeIds.Contains(m.BikeId),
+            pageNumber: 1,
+            pageSize: 5000,
+            orderBy: m => m.Id,
+            isAscending: true
+        );
+
+        var medias = mediasRes.Items?.ToList() ?? new List<Media>();
+
+        
+        var bikeMap = bikes.ToDictionary(b => b.ListingId, b => b);
+
+       
+        var imageMap = medias
+            .GroupBy(m => m.BikeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.Image).FirstOrDefault(img => !string.IsNullOrWhiteSpace(img))
+            );
+
         return new PagedResult<ListingDto>
         {
             TotalPages = res.TotalPages,
-            Items = res.Items?.Select(ToDto).ToList()
+            Items = listings.Select(x =>
+            {
+                bikeMap.TryGetValue(x.Id, out var bike);
+
+                string? image = null;
+                if (bike != null)
+                {
+                    imageMap.TryGetValue(bike.Id, out image);
+                }
+
+                return new ListingDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Description = x.Description,
+                    Status = x.Status.ToString(),
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt,
+                    Price = bike?.Price,
+                    Image = image
+                };
+            }).ToList()
         };
     }
 

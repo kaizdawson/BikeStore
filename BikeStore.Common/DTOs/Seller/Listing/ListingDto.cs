@@ -12,6 +12,10 @@ namespace BikeStore.Common.DTOs.Seller.Listing
         public string Title { get; set; } = default!;
         public string Description { get; set; } = default!;
         public string Status { get; set; } = default!;
+
+        public decimal? Price { get; set; }
+        public string? Image { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
