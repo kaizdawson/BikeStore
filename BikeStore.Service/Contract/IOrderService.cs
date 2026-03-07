@@ -13,7 +13,7 @@ namespace BikeStore.Service.Contract
     {
         Task<Guid> CreateOrderAsync( OrderDto dto);
         Task<List<object>> GetMyOrdersAsync();
-        Task<Order?> GetOrderDetailAsync(Guid orderId);
+        Task<object?> GetOrderDetailAsync(Guid orderId);
         Task<List<object>> GetAllOrdersAsync();
         Task<bool> CancelOrderAsync(Guid orderId); 
         Task<bool> UpdateStatusAsync(Guid orderId, OrderStatusEnum newStatus);

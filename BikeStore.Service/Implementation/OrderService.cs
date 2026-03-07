@@ -117,13 +117,69 @@ namespace BikeStore.Service.Implementation
             }).ToList();
         }
 
-        public async Task<Order?> GetOrderDetailAsync(Guid orderId)
+        public async Task<object?> GetOrderDetailAsync(Guid orderId)
         {
             var userId = GetCurrentUserId();
-            return await _orderRepo.GetFirstByExpression(
+
+            var order = await _orderRepo.GetFirstByExpression(
                 filter: o => o.Id == orderId && o.UserId == userId,
-                includeProperties: new Expression<Func<Order, object>>[] { o => o.OrderItems, o => o.Transaction! }
+                includeProperties: new Expression<Func<Order, object>>[] {
+            o => o.OrderItems,
+            o => o.Transaction!
+                }
             );
+
+            if (order == null) return null;
+
+            var detailedItems = new List<object>();
+
+            foreach (var item in order.OrderItems)
+            {
+                var bike = await _bikeRepo.GetFirstByExpression(
+                    filter: b => b.Id == item.BikeId,
+                    includeProperties: new Expression<Func<Bike, object>>[] {
+                b => b.Listing!,
+                b => b.Medias
+                    }
+                );
+
+                var thumbnail = bike?.Medias?
+                    .Where(m => !string.IsNullOrEmpty(m.Image)) 
+                    .OrderBy(m => m.Id)
+                    .Select(m => m.Image)
+                    .FirstOrDefault() ?? "";
+
+                detailedItems.Add(new
+                {
+                    item.Id,
+                    item.BikeId,
+                    item.UnitPrice,
+                    Title = bike?.Listing?.Title ?? "Không có tiêu đề",
+                    bike?.Brand,
+                    bike?.Category,
+                    Thumbnail = thumbnail 
+                });
+            }
+
+            return new
+            {
+                order.Id,
+                Status = order.Status.ToString(),
+                order.TotalAmount,
+                order.ReceiverName,
+                order.ReceiverPhone,
+                order.ReceiverAddress,
+                order.CreatedAt,
+                Transaction = order.Transaction != null ? new
+                {
+                    order.Transaction.OrderCode,
+                    order.Transaction.Amount,
+                    order.Transaction.Status,
+                    order.Transaction.Description,
+                    order.Transaction.PaidAt
+                } : null,
+                OrderItems = detailedItems
+            };
         }
 
         public async Task<bool> CancelOrderAsync(Guid orderId)
