@@ -42,7 +42,7 @@ namespace BikeStore.Service.Implementation
         public async Task<List<object>> GetPendingListingsAsync()
         {
             var result = await _listingRepo.GetAllDataByExpression(
-                filter: l => l.Status == ListingStatusEnum.Draft,
+                filter: l => l.Status == ListingStatusEnum.PendingApproval,
                 pageNumber: 1,
                 pageSize: 100,
                 includes: new Expression<Func<Listing, object>>[]
@@ -185,20 +185,23 @@ namespace BikeStore.Service.Implementation
                     l.Title,
                     SellerName = l.User?.FullName,
                     Price = firstBike?.Price ?? 0,
-                    Thumbnail = firstBike?.Medias?.FirstOrDefault()?.Image,
+                    Thumbnail = firstBike?.Medias?
+                        .Where(m => !string.IsNullOrEmpty(m.Image))
+                        .OrderBy(m => m.Id)
+                        .Select(m => m.Image)
+                        .FirstOrDefault() ?? "",
                     InspectorName = firstBike?.Inspection?.User?.FullName ?? "Chưa có",
                     l.CreatedAt,
-                    l.Status
+                    ListingStatus = l.Status.ToString(),        
+                    BikeStatus = firstBike?.Status.ToString()   
                 };
             }).ToList();
         }
 
         public async Task<(bool Success, string Message)> CreateInspectorAsync(SignUpDto dto)
         {
-            // 1. Chuẩn hóa Email
             var email = dto.Email.Trim().ToLower();
 
-            // 2. Kiểm tra Email/SĐT tồn tại (giống logic SignUp)
             var existed = await _userRepo.GetFirstByExpression(u => u.Email == email);
             if (existed != null)
                 return (false, "Email này đã tồn tại trong hệ thống.");
@@ -210,7 +213,6 @@ namespace BikeStore.Service.Implementation
                     return (false, "Số điện thoại này đã tồn tại.");
             }
 
-            // 3. Khởi tạo Inspector (Gán Role = Inspector và Status = Active)
             var user = new User
             {
                 Id = Guid.NewGuid(),
