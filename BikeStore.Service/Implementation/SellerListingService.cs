@@ -1,6 +1,7 @@
 ﻿using BikeStore.Common.DTOs;
 using BikeStore.Common.DTOs.Seller.Bike;
 using BikeStore.Common.DTOs.Seller.Listing;
+using BikeStore.Common.DTOs.Seller.Media;
 using BikeStore.Common.Enums;
 using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
@@ -173,7 +174,29 @@ public class SellerListingService : ISellerListingService
 
         if (listing == null) return null;
 
-        var bike = listing.Bikes?.FirstOrDefault(); 
+        var bike = listing.Bikes?.FirstOrDefault();
+        BikeDto? bikeDto = null;
+
+        if (bike != null)
+        {
+            var mediaRes = await _mediaRepo.GetAllDataByExpression(
+                filter: m => m.BikeId == bike.Id,
+                pageNumber: 1,
+                pageSize: 1000,
+                orderBy: m => m.Id,
+                isAscending: true
+            );
+
+            bikeDto = ToBikeDto(bike);
+
+            bikeDto.Medias = mediaRes.Items?.Select(m => new SellerMediaDto
+            {
+                Id = m.Id,
+                BikeId = m.BikeId,
+                Image = m.Image,
+                VideoUrl = m.VideoUrl
+            }).ToList() ?? new List<SellerMediaDto>();
+        }
 
         return new ListingDetailsDto
         {
@@ -183,7 +206,7 @@ public class SellerListingService : ISellerListingService
             Status = listing.Status.ToString(),
             CreatedAt = listing.CreatedAt,
             UpdatedAt = listing.UpdatedAt,
-            Bike = bike == null ? null : ToBikeDto(bike)
+            Bike = bikeDto
         };
     }
 
