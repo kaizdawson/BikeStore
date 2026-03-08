@@ -4,6 +4,7 @@ using BikeStore.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BikeStore.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260308141607_SeedAdmin")]
+    partial class SeedAdmin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -558,7 +561,7 @@ namespace BikeStore.Repository.Migrations
                             Email = "admin@bikestore.com",
                             FullName = "System Admin",
                             IsDeleted = false,
-                            Password = "100000.f30kAaLPHnWOkwS/xhR2cA==.mSeA7xDyGtUr393+a/H4ooLaNzHGXVCHHWgAsM3YrsY=",
+                            Password = "100000.SmNwViw55hJgT+ezXV5aouQ==.2o3dJJDfDKlm/9WO9o7L9CkC1nY7tY2Qm3kF+JjL5o=",
                             PhoneNumber = "0000000000",
                             Role = 1,
                             Status = 1,
