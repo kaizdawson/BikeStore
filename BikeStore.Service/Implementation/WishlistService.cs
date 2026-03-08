@@ -11,7 +11,7 @@ namespace BikeStore.Service.Implementation
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGenericRepository<Wishlist> _wishlistRepo;
-        private readonly IGenericRepository<Bike> _bikeRepo; // Thêm repo xe để check
+        private readonly IGenericRepository<Bike> _bikeRepo; 
 
         public WishlistService(IUnitOfWork unitOfWork,
                                IGenericRepository<Wishlist> wishlistRepo,
@@ -35,31 +35,35 @@ namespace BikeStore.Service.Implementation
                 }
             );
 
-            // Chuyển đổi an toàn: lọc bỏ những wishlist có xe đã bị xóa khỏi hệ thống (nếu có)
             return result.Items
                 .Where(w => w.Bike != null && w.Bike.Listing != null)
                 .Select(w => new WishlistDto
                 {
                     Id = w.Id,
+                    ListingId = w.Bike.ListingId,
                     BikeId = w.BikeId,
                     Title = w.Bike.Listing.Title,
                     Price = w.Bike.Price,
-                    ImageUrl = w.Bike.Medias?.FirstOrDefault()?.Image ?? "default-image-url.png"
+                    Brand = w.Bike.Brand,
+                    Category = w.Bike.Category,
+                    BikeStatus = w.Bike.Status.ToString(),
+                    ImageUrl = w.Bike.Medias?
+                        .Where(m => !string.IsNullOrEmpty(m.Image))
+                        .OrderBy(m => m.Id)
+                        .Select(m => m.Image)
+                        .FirstOrDefault() ?? "default-image-url.png"
                 }).ToList();
-        }
+            }
 
         public async Task<bool> AddToWishlistAsync(Guid userId, Guid bikeId)
         {
-            // 1. Kiểm tra xe có tồn tại và có đang Active/Available không
             var bike = await _bikeRepo.GetById(bikeId);
             if (bike == null)
                 throw new Exception("Xe không tồn tại.");
 
-            // 2. Kiểm tra xem xe này đã nằm trong Wishlist của User chưa
             var existing = await _wishlistRepo.GetFirstByExpression(w => w.UserId == userId && w.BikeId == bikeId);
             if (existing != null)
             {
-                // Thay vì return true, ta ném lỗi để Controller bắt được và hiện thông báo
                 throw new Exception("Xe này đã có trong danh sách yêu thích của bạn.");
             }
             if (bike.Status != BikeStatusEnum.Available)
@@ -67,7 +71,6 @@ namespace BikeStore.Service.Implementation
                 string statusName = bike.Status.ToString();
                 throw new Exception($"Không thể thêm vào giỏ hàng vì xe hiện đang ở trạng thái: {statusName}");
             }
-            // 3. Tạo mới bản ghi
             var newItem = new Wishlist
             {
                 Id = Guid.NewGuid(),
@@ -81,7 +84,6 @@ namespace BikeStore.Service.Implementation
 
         public async Task<bool> RemoveFromWishlistAsync(Guid userId, Guid bikeId)
         {
-            // Tìm bản ghi chính xác của User đó và Xe đó
             var item = await _wishlistRepo.GetFirstByExpression(w => w.UserId == userId && w.BikeId == bikeId);
 
             if (item == null) return false;
