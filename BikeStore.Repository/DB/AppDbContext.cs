@@ -1,4 +1,5 @@
-﻿using BikeStore.Repository.Models;
+﻿using BikeStore.Common.Enums;
+using BikeStore.Repository.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -192,7 +193,24 @@ namespace BikeStore.Repository.DB
 
             modelBuilder.Entity<RefreshToken>()
                 .HasIndex(x => new { x.UserId, x.Revoked, x.ExpiredAt });
-
+            modelBuilder.Entity<User>().HasData(
+                new User
+                {
+                    Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                    Email = "admin@bikestore.com",
+                    FullName = "System Admin",
+                    PhoneNumber = "0000000000",
+                    Password = "100000.f30kAaLPHnWOkwS/xhR2cA==.mSeA7xDyGtUr393+a/H4ooLaNzHGXVCHHWgAsM3YrsY=",
+                    Role = RoleEnum.ADMIN,
+                    WalletBalance = 0m,
+                    Status = UserStatusEnum.Active,
+                    AvtUrl = null,
+                    FirebaseUID = null,
+                    CreatedAt = new DateTime(2026, 3, 8),
+                    UpdatedAt = new DateTime(2026, 3, 8),
+                    IsDeleted = false
+                }
+            );
         }
 
         private static void ApplySoftDeleteQueryFilter(ModelBuilder modelBuilder)
