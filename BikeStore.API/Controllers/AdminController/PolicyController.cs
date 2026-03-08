@@ -27,17 +27,17 @@ namespace BikeStore.API.Controllers
         public async Task<IActionResult> GetCurrent()
         {
             var result = await _policyService.GetCurrentActivePolicyAsync();
-            if (result == null) return NotFound("Không tìm thấy chính sách nào đang có hiệu lực.");
+            if (result == null) return NotFound("Không tìm thấy Policy nào đang có hiệu lực.");
             return Ok(result);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] PolicyCreateDto dto)
+        public async Task<IActionResult> Create([FromBody] PolicyDto dto)
         {
             try
             {
                 var result = await _policyService.CreatePolicyAsync(dto);
-                return Ok(new { Success = result, Message = "Tạo chính sách thành công." });
+                return Ok(new { Success = result, Message = "Tạo Policy thành công." });
             }
             catch (Exception ex)
             {
@@ -46,12 +46,12 @@ namespace BikeStore.API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] PolicyUpdateDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] PolicyDto dto)
         {
             try
             {
                 var result = await _policyService.UpdatePolicyAsync(id, dto);
-                return Ok(new { Success = result, Message = "Cập nhật chính sách thành công." });
+                return Ok(new { Success = result, Message = "Cập nhật Policy thành công." });
             }
             catch (Exception ex)
             {
@@ -65,7 +65,7 @@ namespace BikeStore.API.Controllers
             try
             {
                 var result = await _policyService.DeletePolicyAsync(id);
-                return Ok(new { Success = result, Message = "Xóa chính sách thành công." });
+                return Ok(new { Success = result, Message = "Xóa Policy thành công." });
             }
             catch (Exception ex)
             {

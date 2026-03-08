@@ -142,12 +142,12 @@ public class PolicyService : IPolicyService
     {
         var policy = await _policyRepo.GetById(id);
         if (policy == null || policy.IsDeleted == true)
-            throw new Exception("Không tìm thấy chính sách.");
+            throw new Exception("Không tìm thấy Policy.");
 
         var nowVn = DateTimeHelper.NowVN();
 
         if (policy.AppliedDate <= nowVn)
-            throw new Exception("Không thể sửa chính sách đã hoặc đang có hiệu lực.");
+            throw new Exception("Không thể sửa Policy đã hoặc đang có hiệu lực.");
 
         if (dto.AppliedDate <= nowVn)
             throw new Exception("Ngày áp dụng mới phải ở tương lai.");
@@ -171,7 +171,7 @@ public class PolicyService : IPolicyService
 
         if (policy.Status == PolicyStatusEnum.Active && policy.AppliedDate <= nowVn)
         {
-            throw new Exception("Không thể xóa chính sách đang trong thời gian áp dụng.");
+            throw new Exception("Không thể xóa Policy đang trong thời gian áp dụng.");
         }
 
         policy.IsDeleted = true;

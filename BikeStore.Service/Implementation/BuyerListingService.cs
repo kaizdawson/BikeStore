@@ -48,6 +48,7 @@ namespace BikeStore.Service.Implementation
             {
                 id=b.ListingId,
                 Title = b.Listing?.Title ?? "Không có tiêu đề",
+                BikeId = b.Id,
                 b.Price,
                 b.Brand,
                 b.Category,

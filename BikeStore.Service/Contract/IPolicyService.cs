@@ -12,8 +12,8 @@ namespace BikeStore.Service.Contract
     {
         Task<List<object>> GetAllPoliciesAsync();
         Task<Policy?> GetCurrentActivePolicyAsync();
-        Task<bool> CreatePolicyAsync(PolicyCreateDto dto);
-        Task<bool> UpdatePolicyAsync(Guid id, PolicyUpdateDto dto);
+        Task<bool> CreatePolicyAsync(PolicyDto dto);
+        Task<bool> UpdatePolicyAsync(Guid id, PolicyDto dto);
         Task<bool> DeletePolicyAsync(Guid id);
     }
 }
