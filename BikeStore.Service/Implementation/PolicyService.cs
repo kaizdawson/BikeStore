@@ -17,44 +17,6 @@ public class PolicyService : IPolicyService
         _unitOfWork = unitOfWork;
         _policyRepo = policyRepo;
     }
-
-    private async Task AutoUpdatePolicyStatusAsync()
-    {
-        var nowVn = DateTimeHelper.NowVN();
-
-        var result = await _policyRepo.GetAllDataByExpression(
-            filter: p => p.Status == PolicyStatusEnum.Inactive && p.IsDeleted == false && p.AppliedDate <= nowVn,
-            pageNumber: 1,
-            pageSize: 1,
-            orderBy: p => p.AppliedDate,
-            isAscending: false 
-        );
-
-        var nextPolicy = result.Items.FirstOrDefault();
-
-        if (nextPolicy != null)
-        {
-            var currentActives = await _policyRepo.GetAllDataByExpression(
-                filter: p => p.Status == PolicyStatusEnum.Active && p.IsDeleted == false,
-                pageNumber: 1,
-                pageSize: 10
-            );
-
-            foreach (var oldPolicy in currentActives.Items)
-            {
-                oldPolicy.Status = PolicyStatusEnum.Expired;
-                oldPolicy.UpdatedAt = nowVn;
-                await _policyRepo.Update(oldPolicy);
-            }
-
-            nextPolicy.Status = PolicyStatusEnum.Active;
-            nextPolicy.UpdatedAt = nowVn;
-            await _policyRepo.Update(nextPolicy);
-
-            await _unitOfWork.SaveChangeAsync();
-        }
-    }
-
     public async Task<bool> CreatePolicyAsync(PolicyDto dto)
     {
         var nowVn = DateTimeHelper.NowVN();
@@ -84,8 +46,6 @@ public class PolicyService : IPolicyService
 
     public async Task<Policy?> GetCurrentActivePolicyAsync()
     {
-        await AutoUpdatePolicyStatusAsync();
-
         var nowVn = DateTimeHelper.NowVN();
         var result = await _policyRepo.GetAllDataByExpression(
             filter: p => p.Status == PolicyStatusEnum.Active && p.IsDeleted == false && p.AppliedDate <= nowVn,
@@ -100,8 +60,6 @@ public class PolicyService : IPolicyService
 
     public async Task<List<object>> GetAllPoliciesAsync()
     {
-        await AutoUpdatePolicyStatusAsync();
-
         var nowVn = DateTimeHelper.NowVN();
         var all = await _policyRepo.GetAllDataByExpression(
             filter: p => p.IsDeleted == false,

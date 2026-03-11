@@ -3,6 +3,7 @@ using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.DB;
 using BikeStore.Repository.Implementation;
+using BikeStore.Service.BackgroundJobs;
 using BikeStore.Service.Contract;
 using BikeStore.Service.Implementation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -46,6 +47,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IBuyerListingService, BuyerListingService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
+builder.Services.AddHostedService<PolicyBackgroundService>();
 builder.Services.AddScoped<ISellerOrderService, SellerOrderService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
