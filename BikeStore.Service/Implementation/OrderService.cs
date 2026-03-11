@@ -106,15 +106,40 @@ namespace BikeStore.Service.Implementation
                 includes: new Expression<Func<Order, object>>[] { o => o.OrderItems }
             );
 
-            return result.Items.Select(o => (object)new
+            var listOrder = new List<object>();
+
+            foreach (var o in result.Items)
             {
-                o.Id,
-                o.CreatedAt,
-                Status = o.Status.ToString(), 
-                o.TotalAmount,
-                o.ReceiverName,
-                TotalItems = o.OrderItems.Count
-            }).ToList();
+                var firstItem = o.OrderItems.FirstOrDefault();
+                var img = "";
+
+                if (firstItem != null)
+                {
+                    var bike = await _bikeRepo.GetFirstByExpression(
+                        filter: b => b.Id == firstItem.BikeId,
+                        includeProperties: new Expression<Func<Bike, object>>[] { b => b.Medias }
+                    );
+
+                    img = bike?.Medias?
+                        .Where(m => !string.IsNullOrEmpty(m.Image))
+                        .OrderBy(m => m.Id)
+                        .Select(m => m.Image)
+                        .FirstOrDefault() ?? "";
+                }
+
+                listOrder.Add(new
+                {
+                    o.Id,
+                    o.CreatedAt,
+                    Status = o.Status.ToString(),
+                    o.TotalAmount,
+                    o.ReceiverName,
+                    TotalItems = o.OrderItems.Count,
+                    Thumbnail = img
+                });
+            }
+
+            return listOrder;
         }
 
         public async Task<object?> GetOrderDetailAsync(Guid orderId)
