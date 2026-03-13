@@ -17,6 +17,9 @@ public class PayOsWebhookController : ControllerBase
     private readonly IGenericRepository<OrderItem> _orderItemRepo;
     private readonly IGenericRepository<Bike> _bikeRepo;
     private readonly IGenericRepository<Order> _orderRepo;
+    private readonly IGenericRepository<Listing> _listingRepo;
+    private readonly IGenericRepository<User> _userRepo;
+    private readonly IGenericRepository<Policy> _policyRepo;
     private readonly IUnitOfWork _uow;
 
     public PayOsWebhookController(
@@ -24,6 +27,9 @@ public class PayOsWebhookController : ControllerBase
         IGenericRepository<OrderItem> orderItemRepo,
         IGenericRepository<Bike> bikeRepo,
         IGenericRepository<Order> orderRepo,
+        IGenericRepository<Listing> listingRepo,
+    IGenericRepository<User> userRepo,
+    IGenericRepository<Policy> policyRepo,
         IUnitOfWork uow)
     {
         _tranRepo = tranRepo;
@@ -31,6 +37,9 @@ public class PayOsWebhookController : ControllerBase
         _bikeRepo = bikeRepo;
         _orderRepo = orderRepo;
         _uow = uow;
+        _listingRepo = listingRepo;
+        _userRepo = userRepo;
+        _policyRepo = policyRepo;
     }
 
     [HttpPost("webhook")]
@@ -62,7 +71,6 @@ public class PayOsWebhookController : ControllerBase
         if (tran == null)
             return Ok(new { success = false, message = "Transaction not found", orderCode });
 
-        
         var status = data.TryGetProperty("status", out var st) ? st.GetString() : null;
         var code = doc.RootElement.TryGetProperty("code", out var c) ? c.GetString() : null;
 
@@ -77,38 +85,59 @@ public class PayOsWebhookController : ControllerBase
         var now = DateTimeHelper.NowVN();
 
         
-        if (tran.Status != TransactionStatusEnum.Paid)
+        if (tran.Status == TransactionStatusEnum.Paid)
         {
-            tran.Status = TransactionStatusEnum.Paid;
-            tran.PaidAt = now;
-            tran.UpdatedAt = now;
-            await _tranRepo.Update(tran);
+            return Ok(new
+            {
+                success = true,
+                message = "Transaction already processed",
+                orderCode
+            });
         }
 
-
-       
         var order = await _orderRepo.GetFirstByExpression(o => o.Id == tran.OrderId && !o.IsDeleted);
+        if (order == null)
+            return Ok(new { success = false, message = "Order not found", orderCode });
 
-        if (order != null && order.Status != OrderStatusEnum.Paid)
-        {
-            order.Status = OrderStatusEnum.Paid; 
-            order.UpdatedAt = now;
-            await _orderRepo.Update(order);
-        }
-        
+        var policy = await GetCurrentActivePolicyAsync();
+        if (policy == null)
+            return Ok(new { success = false, message = "Active policy not found", orderCode });
+
         var orderItems = await _orderItemRepo.GetListByExpression(oi => oi.OrderId == tran.OrderId);
+        if (orderItems == null || !orderItems.Any())
+            return Ok(new { success = false, message = "Order items not found", orderCode });
 
         var bikeIds = orderItems
             .Select(oi => oi.BikeId)
             .Where(id => id != Guid.Empty)
             .Distinct()
             .ToList();
+
+        var sellerReceiveMap = new Dictionary<Guid, decimal>();
         var soldCount = 0;
 
-        foreach (var bikeId in bikeIds)
+        foreach (var item in orderItems)
         {
-            var bike = await _bikeRepo.GetFirstByExpression(b => b.Id == bikeId && !b.IsDeleted);
+            var bike = await _bikeRepo.GetFirstByExpression(b => b.Id == item.BikeId && !b.IsDeleted);
             if (bike == null) continue;
+
+            var listing = await _listingRepo.GetFirstByExpression(l => l.Id == bike.ListingId && !l.IsDeleted);
+            if (listing == null) continue;
+
+            var sellerId = listing.UserId;
+
+            var grossAmount = item.LineTotal > 0 ? item.LineTotal : item.UnitPrice;
+
+            var sellerAmount = Math.Round(
+                grossAmount * policy.PercentOfSeller / 100m,
+                2,
+                MidpointRounding.AwayFromZero
+            );
+
+            if (sellerReceiveMap.ContainsKey(sellerId))
+                sellerReceiveMap[sellerId] += sellerAmount;
+            else
+                sellerReceiveMap[sellerId] = sellerAmount;
 
             if (bike.Status != BikeStatusEnum.Sold)
             {
@@ -119,15 +148,62 @@ public class PayOsWebhookController : ControllerBase
             }
         }
 
+        
+        foreach (var kv in sellerReceiveMap)
+        {
+            var sellerId = kv.Key;
+            var amount = kv.Value;
+
+            var seller = await _userRepo.GetFirstByExpression(u => u.Id == sellerId && !u.IsDeleted);
+            if (seller == null) continue;
+
+            seller.WalletBalance += amount;
+            seller.UpdatedAt = now;
+            await _userRepo.Update(seller);
+        }
+
+        
+        tran.Status = TransactionStatusEnum.Paid;
+        tran.PaidAt = now;
+        tran.PolicyId = policy.Id;
+        tran.UpdatedAt = now;
+        await _tranRepo.Update(tran);
+
+       
+        if (order.Status != OrderStatusEnum.Paid)
+        {
+            order.Status = OrderStatusEnum.Paid;
+            order.UpdatedAt = now;
+            await _orderRepo.Update(order);
+        }
+
         await _uow.SaveChangeAsync();
 
         return Ok(new
         {
             success = true,
-            message = "Updated to Paid + Bikes Sold",
+            message = "Updated to Paid + Bikes Sold + WalletBalance added for sellers",
             orderCode,
             bikeCount = bikeIds.Count,
-            soldCount
+            soldCount,
+            sellerCount = sellerReceiveMap.Count,
+            policyId = policy.Id
         });
+    }
+    private async Task<Policy?> GetCurrentActivePolicyAsync()
+    {
+        var now = DateTimeHelper.NowVN();
+
+        var res = await _policyRepo.GetAllDataByExpression(
+            filter: p => p.Status == PolicyStatusEnum.Active
+                      && !p.IsDeleted
+                      && p.AppliedDate <= now,
+            pageNumber: 1,
+            pageSize: 1,
+            orderBy: p => p.AppliedDate,
+            isAscending: false
+        );
+
+        return res.Items.FirstOrDefault();
     }
 }
