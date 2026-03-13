@@ -178,6 +178,12 @@ public class InspectorService : IInspectorService
         if (bike.InspectionId != null)
             return (false, "Bike này đã được kiểm định trước đó.");
 
+        var failedCount = 0;
+        if (!dto.Frame) failedCount++;
+        if (!dto.PaintCondition) failedCount++;
+        if (!dto.Drivetrain) failedCount++;
+        if (!dto.Brakes) failedCount++;
+
         var now = DateTimeHelper.NowVN();
 
         var inspection = new Inspection
@@ -196,16 +202,80 @@ public class InspectorService : IInspectorService
 
         await _inspectionRepo.Insert(inspection);
 
-       
         bike.InspectionId = inspection.Id;
-        bike.Status = BikeStatusEnum.Available; 
         bike.UpdatedAt = now;
-        await _bikeRepo.Update(bike);
 
         
+        if (failedCount >= 3 || dto.Score < 50)
+        {
+            bike.Status = BikeStatusEnum.Disabled;
+            bike.Listing.Status = ListingStatusEnum.Rejected;
+            bike.Listing.UpdatedAt = now;
 
+            await _bikeRepo.Update(bike);
+            await _listingRepo.Update(bike.Listing);
+            await _uow.SaveChangeAsync();
+
+            return (false, "Bike không đạt kiểm định. Hệ thống đã tự động reject: Bike = Disabled, Listing = Rejected.");
+        }
+
+        
+        bike.Status = BikeStatusEnum.Available;
+
+        await _bikeRepo.Update(bike);
         await _uow.SaveChangeAsync();
 
         return (true, "Đã kiểm định thành công. Bike chuyển sang Available.");
+    }
+
+    public async Task<(bool Success, string Message)> RejectBikeAsync(Guid inspectorId, Guid bikeId, string? comment)
+    {
+        var bike = await _bikeRepo.GetFirstByExpression(
+            b => b.Id == bikeId,
+            b => b.Listing
+        );
+
+        if (bike == null)
+            return (false, "Không tìm thấy xe (Bike).");
+
+        if (bike.Listing == null)
+            return (false, "Bike chưa liên kết listing.");
+
+        if (bike.Listing.Status != ListingStatusEnum.Active)
+            return (false, "Listing của xe này không ở trạng thái Active.");
+
+        if (bike.Status != BikeStatusEnum.PendingInspection)
+            return (false, "Bike không ở trạng thái PendingInspection.");
+
+        var now = DateTimeHelper.NowVN();
+
+        var inspection = new Inspection
+        {
+            Id = Guid.NewGuid(),
+            UserId = inspectorId,
+            Frame = false,
+            PaintCondition = false,
+            Drivetrain = false,
+            Brakes = false,
+            Score = 0,
+            Comment = comment,
+            InspectionDate = now,
+            CreatedAt = now
+        };
+
+        await _inspectionRepo.Insert(inspection);
+
+        bike.InspectionId = inspection.Id;
+        bike.Status = BikeStatusEnum.Disabled; 
+        bike.UpdatedAt = now;
+
+        bike.Listing.Status = ListingStatusEnum.Rejected; 
+        bike.Listing.UpdatedAt = now;
+
+        await _bikeRepo.Update(bike);
+        await _listingRepo.Update(bike.Listing);
+        await _uow.SaveChangeAsync();
+
+        return (true, "Đã từ chối kiểm duyệt. Bike chuyển sang Disabled và Listing chuyển sang Rejected.");
     }
 }

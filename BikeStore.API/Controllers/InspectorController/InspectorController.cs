@@ -56,4 +56,18 @@ public class InspectorController : ControllerBase
         var (ok, msg) = await _service.ApproveBikeAsync(inspectorId, bikeId, dto);
         return Ok(new { success = ok, message = msg });
     }
+
+    [HttpPost("reject-bike")]
+    public async Task<IActionResult> RejectBike(
+    [FromHeader(Name = "x-bike-id")] Guid bikeId,
+    [FromBody] RejectBikeDto dto)
+    {
+        if (bikeId == Guid.Empty)
+            return BadRequest(new { success = false, message = "Thiếu header x-bike-id." });
+
+        var inspectorId = ClaimsHelper.GetUserId(HttpContext);
+
+        var (ok, msg) = await _service.RejectBikeAsync(inspectorId, bikeId, dto?.Comment);
+        return Ok(new { success = ok, message = msg });
+    }
 }
