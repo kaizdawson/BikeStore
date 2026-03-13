@@ -14,5 +14,8 @@ namespace BikeStore.Service.Contract
         Task<BikePendingInspectionDto?> GetPendingBikeDetailsAsync(Guid pendingBikeId);
         Task<(bool Success, string Message)> ApproveBikeAsync(Guid inspectorId, Guid bikeId, ApproveBikeDto dto);
         Task<(bool Success, string Message)> RejectBikeAsync(Guid inspectorId, Guid bikeId, string? comment);
+
+        Task<PagedResult<InspectionHistoryListDto>> GetInspectionHistoryAsync(int pageNumber, int pageSize);
+        Task<InspectionHistoryDetailsDto?> GetInspectionHistoryDetailsAsync(Guid inspectionId);
     }
 }
