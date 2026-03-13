@@ -144,6 +144,7 @@ public class InspectorService : IInspectorService
 
             BikeStatus = bike.Status.ToString(),
             ListingStatus = bike.Listing.Status.ToString(),
+            ListingDescription = bike.Listing.Description,
             CreatedAt = bike.CreatedAt,
 
             Medias = mediaRes.Items?.Select(m => new SellerMediaDto

@@ -25,6 +25,7 @@ namespace BikeStore.Common.DTOs.Inspector
         public string Overall { get; set; } = default!;
         public decimal Price { get; set; }
 
+        public string? ListingDescription { get; set; }
         public string BikeStatus { get; set; } = default!;
         public string ListingStatus { get; set; } = default!;
         public DateTime CreatedAt { get; set; }
