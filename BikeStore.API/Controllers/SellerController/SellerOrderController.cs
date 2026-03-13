@@ -71,5 +71,21 @@ namespace BikeStore.API.Controllers.SellerController
 
             return Ok(res);
         }
+
+        [HttpGet("item/{orderItemId}")]
+        public async Task<IActionResult> GetOrderItemDetails([FromRoute] Guid orderItemId)
+        {
+            var sellerId = ClaimsHelper.GetUserId(HttpContext);
+            var res = await _service.GetOrderItemDetailsAsync(sellerId, orderItemId);
+
+            if (res == null)
+                return NotFound(new
+                {
+                    message = "Order item không tồn tại hoặc không thuộc xe của bạn."
+                });
+
+            return Ok(res);
+        }
+
     }
 }

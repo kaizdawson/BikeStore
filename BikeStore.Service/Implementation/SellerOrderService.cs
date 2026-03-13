@@ -369,5 +369,81 @@ namespace BikeStore.Service.Implementation
                     }).ToList()
             };
         }
+
+        public async Task<SellerOrderItemDetailDto?> GetOrderItemDetailsAsync(Guid sellerId, Guid orderItemId)
+        {
+            var orderItem = await _orderItemRepo.GetFirstByExpression(oi => oi.Id == orderItemId);
+            if (orderItem == null) return null;
+
+            var order = await _orderRepo.GetFirstByExpression(o => o.Id == orderItem.OrderId);
+            if (order == null) return null;
+
+            var bike = await _bikeRepo.GetFirstByExpression(b => b.Id == orderItem.BikeId);
+            if (bike == null) return null;
+
+            var listing = await _listingRepo.GetFirstByExpression(
+                l => l.Id == bike.ListingId && l.UserId == sellerId
+            );
+            if (listing == null) return null;
+
+            var mediaRes = await _mediaRepo.GetAllDataByExpression(
+                filter: m => m.BikeId == bike.Id,
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: m => m.Id,
+                isAscending: true
+            );
+
+            var medias = mediaRes.Items?.ToList() ?? new List<Media>();
+
+            return new SellerOrderItemDetailDto
+            {
+                OrderId = order.Id,
+                OrderItemId = orderItem.Id,
+                OrderStatus = order.Status.ToString(),
+
+                ReceiverName = order.ReceiverName,
+                ReceiverPhone = order.ReceiverPhone,
+                ReceiverAddress = order.ReceiverAddress,
+
+                TotalAmount = order.TotalAmount,
+                UnitPrice = orderItem.UnitPrice,
+                LineTotal = orderItem.LineTotal,
+
+                BikeId = bike.Id,
+                BikeBrand = bike.Brand,
+                BikeCategory = bike.Category,
+                FrameSize = bike.FrameSize,
+                FrameMaterial = bike.FrameMaterial,
+                Paint = bike.Paint,
+                Groupset = bike.Groupset,
+                Operating = bike.Operating,
+                TireRim = bike.TireRim,
+                BrakeType = bike.BrakeType,
+                Overall = bike.Overall,
+                Price = bike.Price,
+                BikeStatus = bike.Status.ToString(),
+
+                ListingId = listing.Id,
+                ListingTitle = listing.Title,
+                ListingDescription = listing.Description,
+                ListingStatus = listing.Status.ToString(),
+
+                Images = medias
+                    .Where(m => !string.IsNullOrWhiteSpace(m.Image))
+                    .Select(m => m.Image!)
+                    .ToList(),
+
+                Videos = medias
+                    .Where(m => !string.IsNullOrWhiteSpace(m.VideoUrl))
+                    .Select(m => m.VideoUrl!)
+                    .ToList(),
+
+                CreatedAt = DateTimeHelper.ToVN(order.CreatedAt),
+                UpdatedAt = order.UpdatedAt.HasValue
+                    ? DateTimeHelper.ToVN(order.UpdatedAt.Value)
+                    : null
+            };
+        }
     }
 }
