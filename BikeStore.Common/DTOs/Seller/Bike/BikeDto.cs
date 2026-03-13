@@ -1,4 +1,5 @@
 ﻿using BikeStore.Common.DTOs.Media;
+using BikeStore.Common.DTOs.Seller.Listing;
 using BikeStore.Common.DTOs.Seller.Media;
 using System;
 using System.Collections.Generic;
@@ -27,5 +28,7 @@ namespace BikeStore.Common.DTOs.Seller.Bike
         public string BrakeType { get; set; } = default!;
         public string Overall { get; set; } = default!;
         public List<SellerMediaDto> Medias { get; set; } = new();
+
+        public SellerInspectionDto? Inspection { get; set; }
     }
 }

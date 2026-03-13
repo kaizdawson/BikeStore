@@ -1,5 +1,4 @@
-﻿using BikeStore.Common.DTOs.Media;
-using BikeStore.Common.DTOs.Seller.Media;
+﻿using BikeStore.Common.DTOs.Seller.Media;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace BikeStore.Common.DTOs.Inspector
 {
-    public class BikePendingInspectionDto
+    public class InspectionHistoryDetailsDto
     {
-        public Guid Id { get; set; }
+        public Guid InspectionId { get; set; }
+        public Guid BikeId { get; set; }
         public Guid ListingId { get; set; }
 
         public string Category { get; set; } = default!;
@@ -25,10 +25,17 @@ namespace BikeStore.Common.DTOs.Inspector
         public string Overall { get; set; } = default!;
         public decimal Price { get; set; }
 
-        public string? ListingDescription { get; set; }
         public string BikeStatus { get; set; } = default!;
         public string ListingStatus { get; set; } = default!;
-        public DateTime CreatedAt { get; set; }
+        public string? ListingDescription { get; set; }
+
+        public bool Frame { get; set; }
+        public bool PaintCondition { get; set; }
+        public bool Drivetrain { get; set; }
+        public bool Brakes { get; set; }
+        public int Score { get; set; }
+        public string? Comment { get; set; }
+        public DateTime InspectionDate { get; set; }
 
         public List<SellerMediaDto> Medias { get; set; } = new();
     }

@@ -56,4 +56,42 @@ public class InspectorController : ControllerBase
         var (ok, msg) = await _service.ApproveBikeAsync(inspectorId, bikeId, dto);
         return Ok(new { success = ok, message = msg });
     }
+
+    [HttpPost("reject-bike")]
+    public async Task<IActionResult> RejectBike(
+    [FromHeader(Name = "x-bike-id")] Guid bikeId,
+    [FromBody] RejectBikeDto dto)
+    {
+        if (bikeId == Guid.Empty)
+            return BadRequest(new { success = false, message = "Thiếu header x-bike-id." });
+
+        var inspectorId = ClaimsHelper.GetUserId(HttpContext);
+
+        var (ok, msg) = await _service.RejectBikeAsync(inspectorId, bikeId, dto?.Comment);
+        return Ok(new { success = ok, message = msg });
+    }
+
+    [HttpGet("inspection-history")]
+    public async Task<IActionResult> GetInspectionHistory(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+    {
+        var res = await _service.GetInspectionHistoryAsync(pageNumber, pageSize);
+        return Ok(res);
+    }
+
+    [HttpGet("inspection-history-details")]
+    public async Task<IActionResult> GetInspectionHistoryDetails(
+        [FromHeader(Name = "x-inspection-id")] Guid inspectionId)
+    {
+        if (inspectionId == Guid.Empty)
+            return BadRequest(new { message = "Thiếu header x-inspection-id." });
+
+        var res = await _service.GetInspectionHistoryDetailsAsync(inspectionId);
+
+        if (res == null)
+            return NotFound(new { message = "Không tìm thấy inspection." });
+
+        return Ok(res);
+    }
 }

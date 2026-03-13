@@ -15,5 +15,7 @@ namespace BikeStore.Service.Contract
         Task<SellerOrderDto?> ConfirmOrderAsync(Guid sellerId, Guid orderId);
         Task<SellerOrderDto?> ShipOrderAsync(Guid sellerId, Guid orderId);
         Task<SellerOrderDto?> CompleteOrderAsync(Guid sellerId, Guid orderId);
+
+        Task<SellerOrderItemDetailDto?> GetOrderItemDetailsAsync(Guid sellerId, Guid orderItemId);
     }
 }

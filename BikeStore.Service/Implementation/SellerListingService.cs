@@ -15,15 +15,17 @@ public class SellerListingService : ISellerListingService
     private readonly IGenericRepository<Listing> _listingRepo;
     private readonly IGenericRepository<Bike> _bikeRepo;
     private readonly IGenericRepository<Media> _mediaRepo;
+    private readonly IGenericRepository<Inspection> _inspectionRepo;
     private readonly IUnitOfWork _uow;
 
     public SellerListingService(IGenericRepository<Listing> listingRepo, IUnitOfWork uow, IGenericRepository<Bike> bikeRepo,
-        IGenericRepository<Media> mediaRepo)
+        IGenericRepository<Media> mediaRepo, IGenericRepository<Inspection> inspectionRepo)
     {
         _listingRepo = listingRepo;
         _bikeRepo = bikeRepo;
         _mediaRepo = mediaRepo;
         _uow = uow;
+        _inspectionRepo = inspectionRepo;
     }
 
     public async Task<ListingDto> CreateAsync(Guid sellerId, ListingUpsertDto dto)
@@ -187,6 +189,14 @@ public class SellerListingService : ISellerListingService
                 isAscending: true
             );
 
+            Inspection? inspection = null;
+            if (bike.InspectionId != null)
+            {
+                inspection = await _inspectionRepo.GetFirstByExpression(
+                    x => x.Id == bike.InspectionId
+                );
+            }
+
             bikeDto = ToBikeDto(bike);
 
             bikeDto.Medias = mediaRes.Items?.Select(m => new SellerMediaDto
@@ -196,6 +206,20 @@ public class SellerListingService : ISellerListingService
                 Image = m.Image,
                 VideoUrl = m.VideoUrl
             }).ToList() ?? new List<SellerMediaDto>();
+
+            if (inspection != null)
+            {
+                bikeDto.Inspection = new SellerInspectionDto
+                {
+                    Frame = inspection.Frame,
+                    PaintCondition = inspection.PaintCondition,
+                    Drivetrain = inspection.Drivetrain,
+                    Brakes = inspection.Brakes,
+                    Score = inspection.Score,
+                    Comment = inspection.Comment,
+                    InspectionDate = inspection.InspectionDate
+                };
+            }
         }
 
         return new ListingDetailsDto
