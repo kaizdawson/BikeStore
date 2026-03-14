@@ -32,5 +32,6 @@ namespace BikeStore.Repository.Models
 
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
+        public ICollection<Report> Reports { get; set; } = new List<Report>();
     }
 }

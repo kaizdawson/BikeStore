@@ -4,6 +4,7 @@ using BikeStore.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BikeStore.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260314143152_fixDbForReview")]
+    partial class fixDbForReview
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -419,46 +422,6 @@ namespace BikeStore.Repository.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
-            modelBuilder.Entity("BikeStore.Repository.Models.Report", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Reports");
-                });
-
             modelBuilder.Entity("BikeStore.Repository.Models.Review", b =>
                 {
                     b.Property<Guid>("Id")
@@ -751,25 +714,6 @@ namespace BikeStore.Repository.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BikeStore.Repository.Models.Report", b =>
-                {
-                    b.HasOne("BikeStore.Repository.Models.Order", "Order")
-                        .WithMany("Reports")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BikeStore.Repository.Models.User", "User")
-                        .WithMany("Reports")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("BikeStore.Repository.Models.Review", b =>
                 {
                     b.HasOne("BikeStore.Repository.Models.Order", "Order")
@@ -848,8 +792,6 @@ namespace BikeStore.Repository.Migrations
                 {
                     b.Navigation("OrderItems");
 
-                    b.Navigation("Reports");
-
                     b.Navigation("Review");
 
                     b.Navigation("Transaction");
@@ -871,8 +813,6 @@ namespace BikeStore.Repository.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("RefreshTokens");
-
-                    b.Navigation("Reports");
 
                     b.Navigation("Wishlists");
                 });

@@ -10,8 +10,8 @@ namespace BikeStore.Repository.Models
     {
         public Guid Id { get; set; }
 
-        public Guid TransactionId { get; set; }
-        public Transaction Transaction { get; set; } = default!;
+        public Guid OrderId { get; set; }
+        public Order Order { get; set; } = default!;
 
         public int Rating { get; set; }
         public string? Comment { get; set; }
