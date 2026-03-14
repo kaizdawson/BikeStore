@@ -25,6 +25,6 @@ namespace BikeStore.Repository.Models
         public Guid? PolicyId { get; set; }
         public Policy? Policy { get; set; } 
 
-        public Review? Review { get; set; }
+        
     }
 }

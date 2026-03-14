@@ -24,7 +24,11 @@ namespace BikeStore.Repository.Models
 
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
+        public ICollection<Report> Reports { get; set; } = new List<Report>();
+
         // 1-1 transaction
         public Transaction? Transaction { get; set; }
+
+        public Review? Review { get; set; }
     }
 }

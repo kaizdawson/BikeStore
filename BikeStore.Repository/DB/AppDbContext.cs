@@ -30,7 +30,7 @@ namespace BikeStore.Repository.DB
 
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
-
+        public DbSet<Report> Reports => Set<Report>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -174,11 +174,11 @@ namespace BikeStore.Repository.DB
                 .HasIndex(x => x.OrderCode)
                 .IsUnique();
 
-            // --------- Review (Transaction 1-1) ---------
+            // --------- Review (Order 1-1) ---------
             modelBuilder.Entity<Review>()
-                .HasOne(x => x.Transaction)
+                .HasOne(x => x.Order)
                 .WithOne(x => x.Review)
-                .HasForeignKey<Review>(x => x.TransactionId)
+                .HasForeignKey<Review>(x => x.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<RefreshToken>()
@@ -190,6 +190,20 @@ namespace BikeStore.Repository.DB
             modelBuilder.Entity<RefreshToken>()
                 .HasIndex(x => x.Token)
                 .IsUnique();
+
+            // --------- Report (User 1-n Report) ---------
+            modelBuilder.Entity<Report>()
+                .HasOne(x => x.User)
+                .WithMany(x => x.Reports)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // --------- Report (Order 1-n Report) ---------
+            modelBuilder.Entity<Report>()
+                .HasOne(x => x.Order)
+                .WithMany(x => x.Reports)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<RefreshToken>()
                 .HasIndex(x => new { x.UserId, x.Revoked, x.ExpiredAt });
