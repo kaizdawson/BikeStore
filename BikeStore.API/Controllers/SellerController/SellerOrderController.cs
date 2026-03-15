@@ -26,6 +26,35 @@ namespace BikeStore.API.Controllers.SellerController
             var res = await _service.GetPaidOrdersAsync(sellerId, pageNumber, pageSize);
             return Ok(res);
         }
+        [HttpGet("confirmed")]
+        public async Task<IActionResult> GetConfirmedOrders(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var sellerId = ClaimsHelper.GetUserId(HttpContext);
+            var res = await _service.GetConfirmedOrdersAsync(sellerId, pageNumber, pageSize);
+            return Ok(res);
+        }
+
+        [HttpGet("shipping")]
+        public async Task<IActionResult> GetShippingOrders(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var sellerId = ClaimsHelper.GetUserId(HttpContext);
+            var res = await _service.GetShippingOrdersAsync(sellerId, pageNumber, pageSize);
+            return Ok(res);
+        }
+
+        [HttpGet("completed")]
+        public async Task<IActionResult> GetCompletedOrders(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var sellerId = ClaimsHelper.GetUserId(HttpContext);
+            var res = await _service.GetCompletedOrdersAsync(sellerId, pageNumber, pageSize);
+            return Ok(res);
+        }
 
         [HttpPut("confirm")]
         public async Task<IActionResult> ConfirmOrder([FromHeader] Guid orderId)
