@@ -5,6 +5,7 @@ using BikeStore.Repository.DB;
 using BikeStore.Repository.Implementation;
 using BikeStore.Service.BackgroundJobs;
 using BikeStore.Service.Contract;
+using BikeStore.Service.Implement;
 using BikeStore.Service.Implementation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +50,7 @@ builder.Services.AddScoped<IBuyerListingService, BuyerListingService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddHostedService<PolicyBackgroundService>();
 builder.Services.AddScoped<ISellerOrderService, SellerOrderService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
