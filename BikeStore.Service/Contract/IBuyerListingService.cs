@@ -11,5 +11,7 @@ namespace BikeStore.Service.Contract
     {
         Task<List<object>> GetAllAvailableBikesAsync(int pageNumber, int pageSize);
         Task<object?> GetListingDetailByListingIdAsync(Guid listingId);
+        Task<List<object>> SearchBikesByNameAsync(string name, int pageNumber, int pageSize);
+        Task<List<object>> FilterBikesByTagsAsync(List<string> tags, int pageNumber, int pageSize);
     }
 }

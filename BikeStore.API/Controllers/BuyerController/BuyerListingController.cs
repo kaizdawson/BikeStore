@@ -34,5 +34,19 @@ namespace BikeStore.API.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchByName([FromQuery] string name, int pageNumber = 1, int pageSize = 12)
+        {
+            var result = await _buyerListingService.SearchBikesByNameAsync(name, pageNumber, pageSize);
+            return Ok(result);
+        }
+
+        [HttpPost("filter")]
+        public async Task<IActionResult> FilterByTags([FromBody] List<string> tags, [FromQuery] int pageNumber = 1, int pageSize = 12)
+        {
+            var result = await _buyerListingService.FilterBikesByTagsAsync(tags, pageNumber, pageSize);
+            return Ok(result);
+        }
     }
 }

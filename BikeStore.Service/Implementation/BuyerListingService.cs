@@ -44,19 +44,7 @@ namespace BikeStore.Service.Implementation
                 includes: new Expression<Func<Bike, object>>[] { b => b.Medias, b => b.Listing, b => b.Wishlists }
             );
 
-            return result.Items.Select(b => (object)new
-            {
-                id=b.ListingId,
-                Title = b.Listing?.Title ?? "Không có tiêu đề",
-                BikeId = b.Id,
-                b.Price,
-                b.Brand,
-                b.Category,
-                Thumbnail = b.Medias.OrderBy(m => m.Id).Select(m => m.Image).FirstOrDefault() ?? "",
-                b.Overall,
-                IsWishlisted = currentUserId.HasValue && b.Wishlists.Any(w => w.UserId == currentUserId.Value),
-                IsInspected = b.InspectionId != null
-            }).ToList();
+            return MapBikesToResponse(result.Items, GetCurrentUserId());
         }
 
         public async Task<object?> GetListingDetailByListingIdAsync(Guid listingId)
@@ -137,6 +125,57 @@ namespace BikeStore.Service.Implementation
                         }
                  }
             };
+        }
+        public async Task<List<object>> SearchBikesByNameAsync(string name, int pageNumber, int pageSize)
+        {
+            var searchName = name?.Trim().ToLower();
+
+            var result = await _bikeRepo.GetAllDataByExpression(
+                filter: b => b.Status == BikeStatusEnum.Available &&
+                             (string.IsNullOrEmpty(searchName) || (b.Listing != null && b.Listing.Title.ToLower().Contains(searchName))),
+                pageNumber: pageNumber,
+                pageSize: pageSize,
+                includes: new Expression<Func<Bike, object>>[] { b => b.Medias, b => b.Listing, b => b.Wishlists }
+            );
+
+            return MapBikesToResponse(result.Items, GetCurrentUserId());
+        }
+
+        public async Task<List<object>> FilterBikesByTagsAsync(List<string> tags, int pageNumber, int pageSize)
+        {
+            var normalizedTags = (tags ?? new List<string>())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Trim().ToLower())
+                .ToList();
+
+            var result = await _bikeRepo.GetAllDataByExpression(
+                filter: b => b.Status == BikeStatusEnum.Available &&
+                             (normalizedTags.Count == 0 ||
+                              normalizedTags.Contains(b.Brand.ToLower()) ||
+                              normalizedTags.Contains(b.Category.ToLower())),
+                pageNumber: pageNumber,
+                pageSize: pageSize,
+                includes: new Expression<Func<Bike, object>>[] { b => b.Medias, b => b.Listing, b => b.Wishlists }
+            );
+
+            return MapBikesToResponse(result.Items, GetCurrentUserId());
+        }
+
+        private List<object> MapBikesToResponse(IEnumerable<Bike> bikes, Guid? currentUserId)
+        {
+            return bikes.Select(b => (object)new
+            {
+                id = b.ListingId,
+                Title = b.Listing?.Title ?? "Không có tiêu đề",
+                BikeId = b.Id,
+                b.Price,
+                b.Brand,
+                b.Category,
+                Thumbnail = b.Medias.OrderBy(m => m.Id).Select(m => m.Image).FirstOrDefault() ?? "",
+                b.Overall,
+                IsWishlisted = currentUserId.HasValue && b.Wishlists.Any(w => w.UserId == currentUserId.Value),
+                IsInspected = b.InspectionId != null
+            }).ToList();
         }
     }
 }
