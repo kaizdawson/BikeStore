@@ -11,6 +11,9 @@ namespace BikeStore.Service.Contract
     public interface ISellerOrderService
     {
         Task<PagedResult<SellerOrderDto>> GetPaidOrdersAsync(Guid sellerId, int pageNumber, int pageSize);
+        Task<PagedResult<SellerOrderDto>> GetConfirmedOrdersAsync(Guid sellerId, int pageNumber, int pageSize);
+        Task<PagedResult<SellerOrderDto>> GetShippingOrdersAsync(Guid sellerId, int pageNumber, int pageSize);
+        Task<PagedResult<SellerOrderDto>> GetCompletedOrdersAsync(Guid sellerId, int pageNumber, int pageSize);
 
         Task<SellerOrderDto?> ConfirmOrderAsync(Guid sellerId, Guid orderId);
         Task<SellerOrderDto?> ShipOrderAsync(Guid sellerId, Guid orderId);

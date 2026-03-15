@@ -40,149 +40,22 @@ namespace BikeStore.Service.Implementation
 
         public async Task<PagedResult<SellerOrderDto>> GetPaidOrdersAsync(Guid sellerId, int pageNumber, int pageSize)
         {
-            var orderRes = await _orderRepo.GetAllDataByExpression(
-                filter: o => o.Status == OrderStatusEnum.Paid,
-                pageNumber: pageNumber,
-                pageSize: pageSize,
-                orderBy: o => o.CreatedAt,
-                isAscending: false
-            );
+            return await GetOrdersByStatusAsync(sellerId, OrderStatusEnum.Paid, pageNumber, pageSize);
+        }
 
-            var orders = orderRes.Items?.ToList() ?? new List<Order>();
-            if (!orders.Any())
-            {
-                return new PagedResult<SellerOrderDto>
-                {
-                    TotalPages = orderRes.TotalPages,
-                    Items = new List<SellerOrderDto>()
-                };
-            }
+        public async Task<PagedResult<SellerOrderDto>> GetConfirmedOrdersAsync(Guid sellerId, int pageNumber, int pageSize)
+        {
+            return await GetOrdersByStatusAsync(sellerId, OrderStatusEnum.Confirmed, pageNumber, pageSize);
+        }
 
-            var orderIds = orders.Select(o => o.Id).ToList();
+        public async Task<PagedResult<SellerOrderDto>> GetShippingOrdersAsync(Guid sellerId, int pageNumber, int pageSize)
+        {
+            return await GetOrdersByStatusAsync(sellerId, OrderStatusEnum.Shipping, pageNumber, pageSize);
+        }
 
-            var orderItemsRes = await _orderItemRepo.GetAllDataByExpression(
-                filter: oi => orderIds.Contains(oi.OrderId),
-                pageNumber: 1,
-                pageSize: 5000,
-                orderBy: oi => oi.Id,
-                isAscending: true
-            );
-
-            var orderItems = orderItemsRes.Items?.ToList() ?? new List<OrderItem>();
-            if (!orderItems.Any())
-            {
-                return new PagedResult<SellerOrderDto>
-                {
-                    TotalPages = orderRes.TotalPages,
-                    Items = new List<SellerOrderDto>()
-                };
-            }
-
-            var bikeIds = orderItems.Select(x => x.BikeId).Distinct().ToList();
-
-            var bikesRes = await _bikeRepo.GetAllDataByExpression(
-                filter: b => bikeIds.Contains(b.Id),
-                pageNumber: 1,
-                pageSize: 5000,
-                orderBy: b => b.CreatedAt,
-                isAscending: false
-            );
-
-            var bikes = bikesRes.Items?.ToList() ?? new List<Bike>();
-
-            var listingIds = bikes.Select(b => b.ListingId).Distinct().ToList();
-
-            var listingRes = await _listingRepo.GetAllDataByExpression(
-                filter: l => listingIds.Contains(l.Id) && l.UserId == sellerId,
-                pageNumber: 1,
-                pageSize: 5000,
-                orderBy: l => l.CreatedAt,
-                isAscending: false
-            );
-
-            var ownedListingIds = listingRes.Items?
-                .Select(l => l.Id)
-                .ToHashSet() ?? new HashSet<Guid>();
-
-            var sellerBikeMap = bikes
-                .Where(b => ownedListingIds.Contains(b.ListingId))
-                .ToDictionary(b => b.Id, b => b);
-
-            if (!sellerBikeMap.Any())
-            {
-                return new PagedResult<SellerOrderDto>
-                {
-                    TotalPages = orderRes.TotalPages,
-                    Items = new List<SellerOrderDto>()
-                };
-            }
-
-            var sellerBikeIds = sellerBikeMap.Keys.ToList();
-
-            var mediaRes = await _mediaRepo.GetAllDataByExpression(
-                filter: m => sellerBikeIds.Contains(m.BikeId),
-                pageNumber: 1,
-                pageSize: 5000,
-                orderBy: m => m.Id,
-                isAscending: true
-            );
-
-            var medias = mediaRes.Items?.ToList() ?? new List<Media>();
-
-            var imageMap = medias
-                .GroupBy(m => m.BikeId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Select(x => x.Image).FirstOrDefault(img => !string.IsNullOrWhiteSpace(img))
-                );
-
-            var groupedItems = orderItems
-                .Where(oi => sellerBikeIds.Contains(oi.BikeId))
-                .GroupBy(oi => oi.OrderId)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            var resultItems = orders
-                .Where(o => groupedItems.ContainsKey(o.Id))
-                .Select(o =>
-                {
-                    var dto = new SellerOrderDto
-                    {
-                        Id = o.Id,
-                        Status = o.Status.ToString(),
-                        ReceiverName = o.ReceiverName,
-                        ReceiverPhone = o.ReceiverPhone,
-                        ReceiverAddress = o.ReceiverAddress,
-                        TotalAmount = o.TotalAmount,
-                        CreatedAt = DateTimeHelper.ToVN(o.CreatedAt),
-                        UpdatedAt = o.UpdatedAt.HasValue
-    ? DateTimeHelper.ToVN(o.UpdatedAt.Value)
-    : null,
-                        Items = groupedItems[o.Id].Select(oi =>
-                        {
-                            sellerBikeMap.TryGetValue(oi.BikeId, out var bike);
-                            imageMap.TryGetValue(oi.BikeId, out var image);
-
-                            return new SellerOrderItemDto
-                            {
-                                Id = oi.Id,
-                                BikeId = oi.BikeId,
-                                UnitPrice = oi.UnitPrice,
-                                LineTotal = oi.LineTotal,
-                                BikeBrand = bike?.Brand,
-                                BikeCategory = bike?.Category,
-                                Image = image
-                            };
-                        }).ToList()
-                    };
-
-                    return dto;
-                }).ToList();
-
-            return new PagedResult<SellerOrderDto>
-            {
-                TotalPages = orderRes.TotalPages,
-                Items = resultItems
-            };
+        public async Task<PagedResult<SellerOrderDto>> GetCompletedOrdersAsync(Guid sellerId, int pageNumber, int pageSize)
+        {
+            return await GetOrdersByStatusAsync(sellerId, OrderStatusEnum.Completed, pageNumber, pageSize);
         }
 
         public async Task<SellerOrderDto?> ConfirmOrderAsync(Guid sellerId, Guid orderId)
@@ -369,7 +242,156 @@ namespace BikeStore.Service.Implementation
                     }).ToList()
             };
         }
+        private async Task<PagedResult<SellerOrderDto>> GetOrdersByStatusAsync(
+    Guid sellerId,
+    OrderStatusEnum status,
+    int pageNumber,
+    int pageSize)
+        {
+            var orderRes = await _orderRepo.GetAllDataByExpression(
+                filter: o => o.Status == status,
+                pageNumber: pageNumber,
+                pageSize: pageSize,
+                orderBy: o => o.CreatedAt,
+                isAscending: false
+            );
 
+            var orders = orderRes.Items?.ToList() ?? new List<Order>();
+            if (!orders.Any())
+            {
+                return new PagedResult<SellerOrderDto>
+                {
+                    TotalPages = orderRes.TotalPages,
+                    Items = new List<SellerOrderDto>()
+                };
+            }
+
+            var orderIds = orders.Select(o => o.Id).ToList();
+
+            var orderItemsRes = await _orderItemRepo.GetAllDataByExpression(
+                filter: oi => orderIds.Contains(oi.OrderId),
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: oi => oi.Id,
+                isAscending: true
+            );
+
+            var orderItems = orderItemsRes.Items?.ToList() ?? new List<OrderItem>();
+            if (!orderItems.Any())
+            {
+                return new PagedResult<SellerOrderDto>
+                {
+                    TotalPages = orderRes.TotalPages,
+                    Items = new List<SellerOrderDto>()
+                };
+            }
+
+            var bikeIds = orderItems.Select(x => x.BikeId).Distinct().ToList();
+
+            var bikesRes = await _bikeRepo.GetAllDataByExpression(
+                filter: b => bikeIds.Contains(b.Id),
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: b => b.CreatedAt,
+                isAscending: false
+            );
+
+            var bikes = bikesRes.Items?.ToList() ?? new List<Bike>();
+
+            var listingIds = bikes.Select(b => b.ListingId).Distinct().ToList();
+
+            var listingRes = await _listingRepo.GetAllDataByExpression(
+                filter: l => listingIds.Contains(l.Id) && l.UserId == sellerId,
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: l => l.CreatedAt,
+                isAscending: false
+            );
+
+            var ownedListingIds = listingRes.Items?
+                .Select(l => l.Id)
+                .ToHashSet() ?? new HashSet<Guid>();
+
+            var sellerBikeMap = bikes
+                .Where(b => ownedListingIds.Contains(b.ListingId))
+                .ToDictionary(b => b.Id, b => b);
+
+            if (!sellerBikeMap.Any())
+            {
+                return new PagedResult<SellerOrderDto>
+                {
+                    TotalPages = orderRes.TotalPages,
+                    Items = new List<SellerOrderDto>()
+                };
+            }
+
+            var sellerBikeIds = sellerBikeMap.Keys.ToList();
+
+            var mediaRes = await _mediaRepo.GetAllDataByExpression(
+                filter: m => sellerBikeIds.Contains(m.BikeId),
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: m => m.Id,
+                isAscending: true
+            );
+
+            var medias = mediaRes.Items?.ToList() ?? new List<Media>();
+
+            var imageMap = medias
+                .GroupBy(m => m.BikeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.Image).FirstOrDefault(img => !string.IsNullOrWhiteSpace(img))
+                );
+
+            var groupedItems = orderItems
+                .Where(oi => sellerBikeIds.Contains(oi.BikeId))
+                .GroupBy(oi => oi.OrderId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var resultItems = orders
+                .Where(o => groupedItems.ContainsKey(o.Id))
+                .Select(o =>
+                {
+                    var dto = new SellerOrderDto
+                    {
+                        Id = o.Id,
+                        Status = o.Status.ToString(),
+                        ReceiverName = o.ReceiverName,
+                        ReceiverPhone = o.ReceiverPhone,
+                        ReceiverAddress = o.ReceiverAddress,
+                        TotalAmount = o.TotalAmount,
+                        CreatedAt = DateTimeHelper.ToVN(o.CreatedAt),
+                        UpdatedAt = o.UpdatedAt.HasValue
+                            ? DateTimeHelper.ToVN(o.UpdatedAt.Value)
+                            : null,
+                        Items = groupedItems[o.Id].Select(oi =>
+                        {
+                            sellerBikeMap.TryGetValue(oi.BikeId, out var bike);
+                            imageMap.TryGetValue(oi.BikeId, out var image);
+
+                            return new SellerOrderItemDto
+                            {
+                                Id = oi.Id,
+                                BikeId = oi.BikeId,
+                                UnitPrice = oi.UnitPrice,
+                                LineTotal = oi.LineTotal,
+                                BikeBrand = bike?.Brand,
+                                BikeCategory = bike?.Category,
+                                Image = image
+                            };
+                        }).ToList()
+                    };
+
+                    return dto;
+                }).ToList();
+
+            return new PagedResult<SellerOrderDto>
+            {
+                TotalPages = orderRes.TotalPages,
+                Items = resultItems
+            };
+        }
         public async Task<SellerOrderItemDetailDto?> GetOrderItemDetailsAsync(Guid sellerId, Guid orderItemId)
         {
             var orderItem = await _orderItemRepo.GetFirstByExpression(oi => oi.Id == orderItemId);
