@@ -51,17 +51,7 @@ namespace BikeStore.Service.Implementation
                     l => l.Bikes
                 }
             );
-            //return result.Items.Select(l => new {
-            //    l.Id,
-            //    l.Title,
-            //    SellerName = l.User?.FullName, 
-            //    Price = l.Bikes.FirstOrDefault()?.Price ?? 0,
-            //    Thumbnail = l.Bikes.FirstOrDefault()?.Medias.FirstOrDefault()?.Image,
-            //    l.CreatedAt,
-            //    l.Status
-            //}).Cast<object>().ToList();
-
-            return MapListingToResponse(result.Items);
+            return await MapListingToResponseAsync(result.Items);
         }
 
         public async Task<object?> GetListingDetailAsync(Guid id)
@@ -70,12 +60,23 @@ namespace BikeStore.Service.Implementation
                 filter: l => l.Id == id,
                 includeProperties: new Expression<Func<Listing, object>>[]
                 {
-            l => l.User,
-            l => l.Bikes
+                    l => l.User,
+                    l => l.Bikes
                 }
             );
 
             if (listing == null) return null;
+
+            var context = _listingRepo.GetDbContext();
+            foreach (var b in listing.Bikes)
+            {
+                await context.Entry(b).Collection(bike => bike.Medias).LoadAsync();
+                await context.Entry(b).Reference(bike => bike.Inspection).LoadAsync();
+                if (b.Inspection != null)
+                {
+                    await context.Entry(b.Inspection).Reference(i => i.User).LoadAsync();
+                }
+            }
 
             return new
             {
@@ -113,7 +114,7 @@ namespace BikeStore.Service.Implementation
                     Inspection = b.Inspection != null ? new
                     {
                         b.Inspection.Id,
-                        b.Inspection.UserId,
+                        InspectorName = b.Inspection.User?.FullName ?? "N/A",
                         b.Inspection.Frame,
                         b.Inspection.PaintCondition,
                         b.Inspection.Drivetrain,
@@ -140,12 +141,13 @@ namespace BikeStore.Service.Implementation
             var result = await _listingRepo.GetAllDataByExpression(
                 filter: l => l.Status == ListingStatusEnum.Active && l.Bikes.Any(b => b.Status == BikeStatusEnum.PendingInspection),
                 pageNumber: 1, pageSize: 100,
-                includes: new Expression<Func<Listing, object>>[] {
-            l => l.User,
-            l => l.Bikes
+                includes: new Expression<Func<Listing, object>>[] 
+                {
+                    l => l.User,
+                    l => l.Bikes
                 }
             );
-            return MapListingToResponse(result.Items);
+            return await MapListingToResponseAsync(result.Items);
         }
 
         public async Task<List<object>> GetActiveListingsAsync()
@@ -153,12 +155,13 @@ namespace BikeStore.Service.Implementation
             var result = await _listingRepo.GetAllDataByExpression(
                 filter: l => l.Status == ListingStatusEnum.Active && l.Bikes.Any(b => b.Status == BikeStatusEnum.Available),
                 pageNumber: 1, pageSize: 100,
-                includes: new Expression<Func<Listing, object>>[] {
-            l => l.User,
-            l => l.Bikes
+                includes: new Expression<Func<Listing, object>>[] 
+                {
+                    l => l.User,
+                    l => l.Bikes
                 }
             );
-            return MapListingToResponse(result.Items);
+            return await MapListingToResponseAsync(result.Items);
         }
 
         public async Task<List<object>> GetRejectedListingsAsync()
@@ -171,31 +174,48 @@ namespace BikeStore.Service.Implementation
                     l => l.Bikes
                 }
             );
-            return MapListingToResponse(result.Items);
+            return await MapListingToResponseAsync(result.Items);
         }
 
-        private List<object> MapListingToResponse(IEnumerable<Listing> items)
+        private async Task<List<object>> MapListingToResponseAsync(IEnumerable<Listing> items)
         {
-            return items.Select(l => {
-                var firstBike = l.Bikes.FirstOrDefault();
+            var context = _listingRepo.GetDbContext();
+            var response = new List<object>();
 
-                return (object)new
+            foreach (var l in items)
+            {
+                var firstBike = l.Bikes?.FirstOrDefault();
+                var thumbnail = "";
+
+                if (firstBike != null)
+                {
+                    await context.Entry(firstBike).Collection(b => b.Medias).LoadAsync();
+                    await context.Entry(firstBike).Reference(b => b.Inspection).LoadAsync();
+                    if (firstBike.Inspection != null)
+                    {
+                        await context.Entry(firstBike.Inspection).Reference(i => i.User).LoadAsync();
+                    }
+
+                    thumbnail = firstBike.Medias?
+                        .OrderBy(m => m.Id)
+                        .Select(m => m.Image)
+                        .FirstOrDefault(img => !string.IsNullOrEmpty(img)) ?? "";
+                }
+
+                response.Add(new
                 {
                     l.Id,
                     l.Title,
                     SellerName = l.User?.FullName,
                     Price = firstBike?.Price ?? 0,
-                    Thumbnail = firstBike?.Medias?
-                        .Where(m => !string.IsNullOrEmpty(m.Image))
-                        .OrderBy(m => m.Id)
-                        .Select(m => m.Image)
-                        .FirstOrDefault() ?? "",
+                    Thumbnail = thumbnail,
                     InspectorName = firstBike?.Inspection?.User?.FullName ?? "Chưa có",
                     l.CreatedAt,
-                    ListingStatus = l.Status.ToString(),        
-                    BikeStatus = firstBike?.Status.ToString()   
-                };
-            }).ToList();
+                    ListingStatus = l.Status.ToString(),
+                    BikeStatus = firstBike?.Status.ToString()
+                });
+            }
+            return response;
         }
 
         public async Task<(bool Success, string Message)> CreateInspectorAsync(SignUpDto dto)
