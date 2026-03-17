@@ -16,5 +16,7 @@ namespace BikeStore.Service.Contract
         Task<(bool Success, string Message)> CreateInspectorAsync(SignUpDto dto);
         Task<List<object>> GetUsersManagerAsync(string? search, RoleEnum? role, UserStatusEnum? status, int pageNumber, int pageSize);
         Task<bool> BanUserAsync(Guid userId);
+        Task<List<object>> GetBrandStatisticsAsync(string? search, int pageNumber, int pageSize);
+        Task<List<object>> GetCategoryStatisticsAsync(string? search, int pageNumber, int pageSize);
     }
 }

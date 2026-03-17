@@ -15,12 +15,14 @@ namespace BikeStore.Service.Implementation
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGenericRepository<Listing> _listingRepo;
         private readonly IGenericRepository<User> _userRepo; 
+        private readonly IGenericRepository<Bike> _bikeRepo;
 
-        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo)
+        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo)
         {
             _unitOfWork = unitOfWork;
             _listingRepo = listingRepo;
             _userRepo = userRepo;
+            _bikeRepo = bikeRepo;
         }
 
         public async Task<bool> ApproveListingAsync(Guid id, AdminApproveDto dto)
@@ -311,6 +313,70 @@ namespace BikeStore.Service.Implementation
 
             await _userRepo.Update(user);
             return await _unitOfWork.SaveChangeAsync() > 0;
+        }
+
+        public async Task<List<object>> GetBrandStatisticsAsync(string? search, int pageNumber, int pageSize)
+        {
+            var result = await _bikeRepo.GetAllDataByExpression(
+                filter: b => !b.IsDeleted,
+                pageNumber: 1, pageSize: 5000, 
+                includes: new Expression<Func<Bike, object>>[] { b => b.Listing }
+            );
+
+            var searchVal = search?.Trim().ToLower();
+
+            var groups = result.Items
+                .GroupBy(b => b.Brand)
+                .Where(g => string.IsNullOrEmpty(searchVal) || g.Key.ToLower().Contains(searchVal))
+                .ToList();
+
+            var pagedGroups = groups
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            int stt = (pageNumber - 1) * pageSize + 1;
+
+            return pagedGroups.Select(g => (object)new
+            {
+                STT = (stt++).ToString("D2"),
+                TenThuongHieu = g.Key ?? "N/A",
+                TongTinDang = $"{g.Count()} tin",
+                SoLuongSP = $"{g.Count(x => x.Status == BikeStatusEnum.Available && x.Listing?.Status == ListingStatusEnum.Active)} xe",
+                DaBan = $"{g.Count(x => x.Status == BikeStatusEnum.Sold)} xe"
+            }).ToList();
+        }
+
+        public async Task<List<object>> GetCategoryStatisticsAsync(string? search, int pageNumber, int pageSize)
+        {
+            var result = await _bikeRepo.GetAllDataByExpression(
+                filter: b => !b.IsDeleted,
+                pageNumber: 1, pageSize: 5000,
+                includes: new Expression<Func<Bike, object>>[] { b => b.Listing }
+            );
+
+            var searchVal = search?.Trim().ToLower();
+
+            var groups = result.Items
+                .GroupBy(b => b.Category)
+                .Where(g => string.IsNullOrEmpty(searchVal) || (g.Key != null && g.Key.ToLower().Contains(searchVal)))
+                .ToList();
+
+            var pagedGroups = groups
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            int stt = (pageNumber - 1) * pageSize + 1;
+
+            return pagedGroups.Select(g => (object)new
+            {
+                STT = (stt++).ToString("D2"),
+                TenLoaiXe = g.Key ?? "N/A",
+                TongTinDang = $"{g.Count()} tin",
+                SoLuongSP = $"{g.Count(x => x.Status == BikeStatusEnum.Available && x.Listing?.Status == ListingStatusEnum.Active)} xe",
+                DaBan = $"{g.Count(x => x.Status == BikeStatusEnum.Sold)} xe" 
+            }).ToList();
         }
     }
 }

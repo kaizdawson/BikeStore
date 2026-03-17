@@ -99,5 +99,18 @@ namespace BikeStore.API.Controllers.AdminController
 
             return Ok(new { Message = "Cập nhật trạng thái người dùng thành công." });
         }
+
+        [HttpGet("list-brands")]
+        public async Task<IActionResult> GetBrandStats(string? search, int page = 1, int size = 10)
+        {
+            return Ok(await _adminService.GetBrandStatisticsAsync(search, page, size));
+        }
+        [HttpGet("list-categories")]
+        public async Task<IActionResult> GetCategoryStats(string? search, int page = 1, int size = 10)
+
+        {
+            var result = await _adminService.GetCategoryStatisticsAsync(search, page, size);
+            return Ok(result);
+        }
     }
 }
