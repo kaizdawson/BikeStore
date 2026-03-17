@@ -1,5 +1,6 @@
 ﻿using BikeStore.Common.DTOs;
 using BikeStore.Common.DTOs.Admin;
+using BikeStore.Common.Enums;
 using BikeStore.Repository.Models;
 
 namespace BikeStore.Service.Contract
@@ -13,5 +14,7 @@ namespace BikeStore.Service.Contract
         Task<List<object>> GetActiveListingsAsync();
         Task<List<object>> GetRejectedListingsAsync();
         Task<(bool Success, string Message)> CreateInspectorAsync(SignUpDto dto);
+        Task<List<object>> GetUsersManagerAsync(string? search, RoleEnum? role, UserStatusEnum? status, int pageNumber, int pageSize);
+        Task<bool> BanUserAsync(Guid userId);
     }
 }

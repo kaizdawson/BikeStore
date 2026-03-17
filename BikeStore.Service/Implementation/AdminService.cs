@@ -255,5 +255,62 @@ namespace BikeStore.Service.Implementation
                 ? (true, "Tạo tài khoản Inspector thành công và đã kích hoạt.")
                 : (false, "Có lỗi xảy ra khi lưu dữ liệu.");
         }
+
+        public async Task<List<object>> GetUsersManagerAsync(
+        string? search,
+        RoleEnum? role,
+        UserStatusEnum? status,
+        int pageNumber,
+        int pageSize)
+        {
+            var searchVal = search?.Trim().ToLower();
+
+            Expression<Func<User, bool>> filter = u => !u.IsDeleted &&
+                (string.IsNullOrEmpty(searchVal) || u.FullName.ToLower().Contains(searchVal) || u.Email.ToLower().Contains(searchVal)) &&
+                (!role.HasValue || u.Role == role.Value) &&
+                (!status.HasValue || u.Status == status.Value);
+
+            var result = await _userRepo.GetAllDataByExpression(
+                filter: filter,
+                pageNumber: pageNumber,
+                pageSize: pageSize,
+                orderBy: u => u.CreatedAt,
+                isAscending: false
+            );
+
+            int stt = (pageNumber - 1) * pageSize + 1;
+
+            return result.Items.Select(u => (object)new
+            {
+                STT = stt++,
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email,
+                Role = u.Role.ToString(), 
+                JoinedDate = u.CreatedAt.ToString("dd/MM/yyyy"),
+                Status = u.Status.ToString(), 
+                IsLocked = u.Status == UserStatusEnum.Banned 
+            }).ToList();
+        }
+
+        public async Task<bool> BanUserAsync(Guid userId)
+        {
+            var user = await _userRepo.GetById(userId);
+            if (user == null) return false;
+
+            if (user.Status == UserStatusEnum.Banned)
+            {
+                user.Status = UserStatusEnum.Active;
+            }
+            else
+            {
+                user.Status = UserStatusEnum.Banned;
+            }
+
+            user.UpdatedAt = DateTimeHelper.NowVN();
+
+            await _userRepo.Update(user);
+            return await _unitOfWork.SaveChangeAsync() > 0;
+        }
     }
 }
