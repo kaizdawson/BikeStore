@@ -47,6 +47,8 @@ namespace BikeStore.Service.Implementation
                 filter: l => l.Status == ListingStatusEnum.PendingApproval,
                 pageNumber: 1,
                 pageSize: 100,
+                orderBy: l => l.CreatedAt, 
+                isAscending: false,        
                 includes: new Expression<Func<Listing, object>>[]
                 {
                     l => l.User,
@@ -142,7 +144,10 @@ namespace BikeStore.Service.Implementation
         {
             var result = await _listingRepo.GetAllDataByExpression(
                 filter: l => l.Status == ListingStatusEnum.Active && l.Bikes.Any(b => b.Status == BikeStatusEnum.PendingInspection),
-                pageNumber: 1, pageSize: 100,
+                pageNumber: 1, 
+                pageSize: 100,
+                orderBy: l => l.CreatedAt, 
+                isAscending: false,        
                 includes: new Expression<Func<Listing, object>>[] 
                 {
                     l => l.User,
@@ -156,7 +161,10 @@ namespace BikeStore.Service.Implementation
         {
             var result = await _listingRepo.GetAllDataByExpression(
                 filter: l => l.Status == ListingStatusEnum.Active && l.Bikes.Any(b => b.Status == BikeStatusEnum.Available),
-                pageNumber: 1, pageSize: 100,
+                pageNumber: 1, 
+                pageSize: 100,
+                orderBy: l => l.CreatedAt,
+                isAscending: false,
                 includes: new Expression<Func<Listing, object>>[] 
                 {
                     l => l.User,
@@ -170,7 +178,10 @@ namespace BikeStore.Service.Implementation
         {
             var result = await _listingRepo.GetAllDataByExpression(
                 filter: l => l.Status == ListingStatusEnum.Rejected,
-                pageNumber: 1, pageSize: 100,
+                pageNumber: 1,
+                pageSize: 100,
+                orderBy: l => l.CreatedAt,
+                isAscending: false,
                 includes: new Expression<Func<Listing, object>>[] {
                     l => l.User,
                     l => l.Bikes
@@ -258,7 +269,7 @@ namespace BikeStore.Service.Implementation
                 : (false, "Có lỗi xảy ra khi lưu dữ liệu.");
         }
 
-        public async Task<List<object>> GetUsersManagerAsync(
+        public async Task<object> GetUsersManagerAsync(
         string? search,
         RoleEnum? role,
         UserStatusEnum? status,
@@ -282,17 +293,23 @@ namespace BikeStore.Service.Implementation
 
             int stt = (pageNumber - 1) * pageSize + 1;
 
-            return result.Items.Select(u => (object)new
+            var items = result.Items.Select(u => (object)new
             {
                 STT = stt++,
                 Id = u.Id,
                 FullName = u.FullName,
                 Email = u.Email,
-                Role = u.Role.ToString(), 
+                Role = u.Role.ToString(),
                 JoinedDate = u.CreatedAt.ToString("dd/MM/yyyy"),
-                Status = u.Status.ToString(), 
-                IsLocked = u.Status == UserStatusEnum.Banned 
+                Status = u.Status.ToString(),
+                IsLocked = u.Status == UserStatusEnum.Banned
             }).ToList();
+
+            return new
+            {
+                TotalPage = result.TotalPages,
+                Items = items
+            };
         }
 
         public async Task<bool> BanUserAsync(Guid userId)
@@ -315,7 +332,7 @@ namespace BikeStore.Service.Implementation
             return await _unitOfWork.SaveChangeAsync() > 0;
         }
 
-        public async Task<List<object>> GetBrandStatisticsAsync(string? search, int pageNumber, int pageSize)
+        public async Task<object> GetBrandStatisticsAsync(string? search, int pageNumber, int pageSize)
         {
             var result = await _bikeRepo.GetAllDataByExpression(
                 filter: b => !b.IsDeleted,
@@ -337,7 +354,7 @@ namespace BikeStore.Service.Implementation
 
             int stt = (pageNumber - 1) * pageSize + 1;
 
-            return pagedGroups.Select(g => (object)new
+            var items = pagedGroups.Select(g => (object)new
             {
                 STT = (stt++).ToString("D2"),
                 TenThuongHieu = g.Key ?? "N/A",
@@ -345,9 +362,15 @@ namespace BikeStore.Service.Implementation
                 SoLuongSP = $"{g.Count(x => x.Status == BikeStatusEnum.Available && x.Listing?.Status == ListingStatusEnum.Active)} xe",
                 DaBan = $"{g.Count(x => x.Status == BikeStatusEnum.Sold)} xe"
             }).ToList();
+
+            return new
+            {
+                TotalPage = (int)Math.Ceiling((double)groups.Count / pageSize),
+                Items = items
+            };
         }
 
-        public async Task<List<object>> GetCategoryStatisticsAsync(string? search, int pageNumber, int pageSize)
+        public async Task<object> GetCategoryStatisticsAsync(string? search, int pageNumber, int pageSize)
         {
             var result = await _bikeRepo.GetAllDataByExpression(
                 filter: b => !b.IsDeleted,
@@ -369,14 +392,20 @@ namespace BikeStore.Service.Implementation
 
             int stt = (pageNumber - 1) * pageSize + 1;
 
-            return pagedGroups.Select(g => (object)new
+            var items = pagedGroups.Select(g => (object)new
             {
                 STT = (stt++).ToString("D2"),
                 TenLoaiXe = g.Key ?? "N/A",
                 TongTinDang = $"{g.Count()} tin",
                 SoLuongSP = $"{g.Count(x => x.Status == BikeStatusEnum.Available && x.Listing?.Status == ListingStatusEnum.Active)} xe",
-                DaBan = $"{g.Count(x => x.Status == BikeStatusEnum.Sold)} xe" 
+                DaBan = $"{g.Count(x => x.Status == BikeStatusEnum.Sold)} xe"
             }).ToList();
+
+            return new
+            {
+                TotalPage = (int)Math.Ceiling((double)groups.Count / pageSize),
+                Items = items
+            };
         }
     }
 }
