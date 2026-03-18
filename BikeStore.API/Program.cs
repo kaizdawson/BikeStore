@@ -3,6 +3,7 @@ using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.DB;
 using BikeStore.Repository.Implementation;
+using BikeStore.Repository.Models;
 using BikeStore.Service.BackgroundJobs;
 using BikeStore.Service.Contract;
 using BikeStore.Service.Implement;
@@ -51,6 +52,8 @@ builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddHostedService<PolicyBackgroundService>();
 builder.Services.AddScoped<ISellerOrderService, SellerOrderService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IGenericRepository<Report>, GenericRepository<Report>>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
