@@ -268,5 +268,46 @@ namespace BikeStore.Service.Implementation
                 TotalItems = o.OrderItems.Count
             }).ToList();
         }
+
+        public async Task<Guid> BuyNowAsync(Guid bikeId, OrderDto dto)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) throw new Exception("Vui lòng đăng nhập.");
+
+            var bike = await _bikeRepo.GetFirstByExpression(
+                filter: b => b.Id == bikeId && !b.IsDeleted,
+                includeProperties: new Expression<Func<Bike, object>>[] { b => b.Listing! }
+            );
+
+            if (bike == null) throw new Exception("Sản phẩm không tồn tại.");
+            if (bike.Status != BikeStatusEnum.Available)
+                throw new Exception("Sản phẩm này hiện không còn khả dụng.");
+
+            var order = new Order
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Status = OrderStatusEnum.Pending,
+                ReceiverName = dto.ReceiverName,
+                ReceiverPhone = dto.ReceiverPhone,
+                ReceiverAddress = dto.ReceiverAddress,
+                TotalAmount = bike.Price, 
+                CreatedAt = DateTimeHelper.NowVN(),
+                UpdatedAt = DateTimeHelper.NowVN()
+            };
+
+            order.OrderItems.Add(new OrderItem
+            {
+                Id = Guid.NewGuid(),
+                OrderId = order.Id,
+                BikeId = bike.Id,
+                UnitPrice = bike.Price
+            });
+
+            await _orderRepo.Insert(order);
+            await _unitOfWork.SaveChangeAsync();
+
+            return order.Id;
+        }
     }
 }

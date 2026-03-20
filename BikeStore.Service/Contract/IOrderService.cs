@@ -17,5 +17,7 @@ namespace BikeStore.Service.Contract
         Task<List<object>> GetAllOrdersAsync();
         Task<bool> CancelOrderAsync(Guid orderId); 
         Task<bool> UpdateStatusAsync(Guid orderId, OrderStatusEnum newStatus);
+
+        Task<Guid> BuyNowAsync(Guid bikeId, OrderDto dto);
     }
 }

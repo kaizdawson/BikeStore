@@ -69,7 +69,6 @@ namespace BikeStore.API.Controllers
             return Ok(orders);
         }
 
-        [Authorize(Roles = "ADMIN")]
         [HttpPatch("{id}/status")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] OrderStatusEnum status)
         {
@@ -84,5 +83,18 @@ namespace BikeStore.API.Controllers
             }
         }
 
+        [HttpPost("buy-now/{bikeId}")]
+        public async Task<IActionResult> BuyNow(Guid bikeId, [FromBody] OrderDto dto)
+        {
+            try
+            {
+                var orderId = await _orderService.BuyNowAsync(bikeId, dto);
+                return Ok(new { OrderId = orderId, Message = "Tạo đơn hàng mua ngay thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
     }
 }
