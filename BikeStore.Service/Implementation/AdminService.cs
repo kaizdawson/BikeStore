@@ -429,13 +429,11 @@ namespace BikeStore.Service.Implementation
             int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
             DateTime startOfCurrentWeek = now.AddDays(-diff).Date;
 
-            // --- BIỂU ĐỒ TĂNG TRƯỞNG NGƯỜI DÙNG (6 TUẦN GẦN NHẤT) ---
             var userGrowthChart = new List<object>();
             for (int i = 5; i >= 0; i--)
             {
-                // Xác định khoảng thời gian từ Thứ 2 đến Chủ Nhật của tuần đó
                 DateTime startDate = startOfCurrentWeek.AddDays(-(i * 7));
-                DateTime endDate = startDate.AddDays(7).AddTicks(-1); // 23:59:59 của Chủ Nhật
+                DateTime endDate = startDate.AddDays(7).AddTicks(-1);
 
                 var users = await _userRepo.GetAllDataByExpression(
                     u => u.CreatedAt >= startDate && u.CreatedAt <= endDate, 1, 10000);
@@ -443,13 +441,11 @@ namespace BikeStore.Service.Implementation
                 userGrowthChart.Add(new
                 {
                     Label = i == 0 ? "Tuần này" : $"{i} tuần trước",
-                    // Thêm Range để FE có thể hiển thị tooltip "15/05 - 21/05"
                     Range = $"{startDate:dd/MM} - {endDate:dd/MM}",
                     Value = users.Items?.Count ?? 0
                 });
             }
 
-            // --- BIỂU ĐỒ DOANH THU THEO TUẦN (6 TUẦN GẦN NHẤT) ---
             var revenueChart = new List<object>();
             for (int i = 5; i >= 0; i--)
             {

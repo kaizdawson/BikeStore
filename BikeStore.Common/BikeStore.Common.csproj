@@ -9,4 +9,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
 		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="9.0.6" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="DTOs\Seller\Dasboard\" />
+	</ItemGroup>
 </Project>

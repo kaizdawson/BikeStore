@@ -113,7 +113,7 @@ namespace BikeStore.API.Controllers.AdminController
             return Ok(result);
         }
 
-        [HttpGet("dashboard-overview")]
+        [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboardOverview()
         {
             try
