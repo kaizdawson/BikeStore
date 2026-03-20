@@ -112,5 +112,29 @@ namespace BikeStore.API.Controllers.AdminController
             var result = await _adminService.GetCategoryStatisticsAsync(search, page, size);
             return Ok(result);
         }
+
+        [HttpGet("dashboard-overview")]
+        public async Task<IActionResult> GetDashboardOverview()
+        {
+            try
+            {
+                var result = await _adminService.GetDashboardOverviewAsync();
+
+                if (result == null)
+                {
+                    return NotFound(new { Message = "Không tìm thấy dữ liệu thống kê." });
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = "Đã xảy ra lỗi khi lấy dữ liệu Dashboard.",
+                    Detail = ex.Message
+                });
+            }
+        }
     }
 }

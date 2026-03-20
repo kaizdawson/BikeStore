@@ -16,13 +16,15 @@ namespace BikeStore.Service.Implementation
         private readonly IGenericRepository<Listing> _listingRepo;
         private readonly IGenericRepository<User> _userRepo; 
         private readonly IGenericRepository<Bike> _bikeRepo;
+        private readonly IGenericRepository<Order> _orderRepo;
 
-        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo)
+        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo)
         {
             _unitOfWork = unitOfWork;
             _listingRepo = listingRepo;
             _userRepo = userRepo;
             _bikeRepo = bikeRepo;
+            _orderRepo = orderRepo;
         }
 
         public async Task<bool> ApproveListingAsync(Guid id, AdminApproveDto dto)
@@ -405,6 +407,81 @@ namespace BikeStore.Service.Implementation
             {
                 TotalPage = (int)Math.Ceiling((double)groups.Count / pageSize),
                 Items = items
+            };
+        }
+
+        public async Task<object> GetDashboardOverviewAsync()
+        {
+            var now = DateTimeHelper.NowVN();
+
+            var completedOrders = await _orderRepo.GetAllDataByExpression(o => o.Status == OrderStatusEnum.Completed && !o.IsDeleted, 1, 10000);
+            var totalRevenue = completedOrders.Items?.Sum(o => o.TotalAmount) ?? 0;
+
+            var allOrders = await _orderRepo.GetAllDataByExpression(o => !o.IsDeleted, 1, 10000);
+            var totalTransactions = allOrders.Items?.Count ?? 0;
+
+            var pendingListingsResult = await _listingRepo.GetAllDataByExpression(l => l.Status == ListingStatusEnum.PendingApproval && !l.IsDeleted, 1, 10000);
+            var pendingListings = pendingListingsResult.Items?.Count ?? 0;
+
+            var rejectedListingsResult = await _listingRepo.GetAllDataByExpression(l => (l.Status == ListingStatusEnum.Rejected || l.IsDeleted), 1, 10000);
+            var rejectedListings = rejectedListingsResult.Items?.Count ?? 0;
+
+            int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+            DateTime startOfCurrentWeek = now.AddDays(-diff).Date;
+
+            // --- BIỂU ĐỒ TĂNG TRƯỞNG NGƯỜI DÙNG (6 TUẦN GẦN NHẤT) ---
+            var userGrowthChart = new List<object>();
+            for (int i = 5; i >= 0; i--)
+            {
+                // Xác định khoảng thời gian từ Thứ 2 đến Chủ Nhật của tuần đó
+                DateTime startDate = startOfCurrentWeek.AddDays(-(i * 7));
+                DateTime endDate = startDate.AddDays(7).AddTicks(-1); // 23:59:59 của Chủ Nhật
+
+                var users = await _userRepo.GetAllDataByExpression(
+                    u => u.CreatedAt >= startDate && u.CreatedAt <= endDate, 1, 10000);
+
+                userGrowthChart.Add(new
+                {
+                    Label = i == 0 ? "Tuần này" : $"{i} tuần trước",
+                    // Thêm Range để FE có thể hiển thị tooltip "15/05 - 21/05"
+                    Range = $"{startDate:dd/MM} - {endDate:dd/MM}",
+                    Value = users.Items?.Count ?? 0
+                });
+            }
+
+            // --- BIỂU ĐỒ DOANH THU THEO TUẦN (6 TUẦN GẦN NHẤT) ---
+            var revenueChart = new List<object>();
+            for (int i = 5; i >= 0; i--)
+            {
+                DateTime startDate = startOfCurrentWeek.AddDays(-(i * 7));
+                DateTime endDate = startDate.AddDays(7).AddTicks(-1);
+
+                var weeklyOrders = await _orderRepo.GetAllDataByExpression(
+                    o => o.Status == OrderStatusEnum.Completed
+                         && o.CreatedAt >= startDate
+                         && o.CreatedAt <= endDate, 1, 10000);
+
+                var weeklyRevenue = weeklyOrders.Items?.Sum(o => o.TotalAmount) ?? 0;
+
+                revenueChart.Add(new
+                {
+                    Label = i == 0 ? "Tuần này" : $"{i} tuần trước",
+                    Range = $"{startDate:dd/MM} - {endDate:dd/MM}",
+                    Value = weeklyRevenue
+                });
+            }
+
+            return new
+            {
+                Cards = new
+                {
+                    TotalRevenue = totalRevenue,
+                    TotalTransactions = totalTransactions,
+                    PendingListings = pendingListings,
+                    RejectedListings = rejectedListings
+                },
+                UserGrowthChart = userGrowthChart,
+                RevenueWeeklyChart = revenueChart
             };
         }
     }

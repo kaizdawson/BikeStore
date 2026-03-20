@@ -18,5 +18,6 @@ namespace BikeStore.Service.Contract
         Task<bool> BanUserAsync(Guid userId);
         Task<object> GetBrandStatisticsAsync(string? search, int pageNumber, int pageSize);
         Task<object> GetCategoryStatisticsAsync(string? search, int pageNumber, int pageSize);
+        Task<object> GetDashboardOverviewAsync();
     }
 }
