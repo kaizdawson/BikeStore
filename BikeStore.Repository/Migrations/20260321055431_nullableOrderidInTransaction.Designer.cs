@@ -4,6 +4,7 @@ using BikeStore.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BikeStore.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321055431_nullableOrderidInTransaction")]
+    partial class nullableOrderidInTransaction
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -505,6 +508,7 @@ namespace BikeStore.Repository.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("OrderCode")
+                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<Guid?>("OrderId")
@@ -522,22 +526,16 @@ namespace BikeStore.Repository.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
                     b.HasIndex("OrderCode")
-                        .IsUnique()
-                        .HasFilter("[OrderCode] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("OrderId")
                         .IsUnique()
                         .HasFilter("[OrderId] IS NOT NULL");
 
                     b.HasIndex("PolicyId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Transactions");
                 });
@@ -799,15 +797,9 @@ namespace BikeStore.Repository.Migrations
                         .HasForeignKey("PolicyId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("BikeStore.Repository.Models.User", "User")
-                        .WithMany("Transactions")
-                        .HasForeignKey("UserId");
-
                     b.Navigation("Order");
 
                     b.Navigation("Policy");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BikeStore.Repository.Models.Wishlist", b =>
@@ -884,8 +876,6 @@ namespace BikeStore.Repository.Migrations
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("Reports");
-
-                    b.Navigation("Transactions");
 
                     b.Navigation("Wishlists");
                 });

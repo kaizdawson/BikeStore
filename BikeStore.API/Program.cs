@@ -55,6 +55,9 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IGenericRepository<Report>, GenericRepository<Report>>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ISellerDashboardService, SellerDashboardService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<ISellerReportService, SellerReportService>();
+builder.Services.AddScoped<ISellerReviewService, SellerReviewService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
