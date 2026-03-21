@@ -136,5 +136,23 @@ namespace BikeStore.API.Controllers.AdminController
                 });
             }
         }
+
+        [HttpGet("transactions")]
+        public async Task<IActionResult> GetAllTransactions()
+        {
+            try
+            {
+                var result = await _adminService.GetTransactionsForAdminAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = "Đã xảy ra lỗi khi lấy danh sách giao dịch.",
+                    Detail = ex.Message
+                });
+            }
+        }
     }
 }

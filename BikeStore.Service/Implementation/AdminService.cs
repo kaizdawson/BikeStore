@@ -17,14 +17,16 @@ namespace BikeStore.Service.Implementation
         private readonly IGenericRepository<User> _userRepo; 
         private readonly IGenericRepository<Bike> _bikeRepo;
         private readonly IGenericRepository<Order> _orderRepo;
+        private readonly IGenericRepository<Transaction> _transactionRepo;
 
-        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo)
+        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo, IGenericRepository<Transaction> transactionRepo)
         {
             _unitOfWork = unitOfWork;
             _listingRepo = listingRepo;
             _userRepo = userRepo;
             _bikeRepo = bikeRepo;
             _orderRepo = orderRepo;
+            _transactionRepo = transactionRepo;
         }
 
         public async Task<bool> ApproveListingAsync(Guid id, AdminApproveDto dto)
@@ -478,6 +480,54 @@ namespace BikeStore.Service.Implementation
                 },
                 UserGrowthChart = userGrowthChart,
                 RevenueWeeklyChart = revenueChart
+            };
+        }
+
+        public async Task<object> GetTransactionsForAdminAsync()
+        {
+            var transactions = await _transactionRepo.GetAllDataByExpression(
+                t => !t.IsDeleted && t.OrderId != null && t.PolicyId != null,
+                1,
+                int.MaxValue,
+                t => t.CreatedAt,
+                true,
+                t => t.Policy
+            );
+
+            if (transactions.Items == null || !transactions.Items.Any())
+            {
+                return new
+                {
+                    Transactions = new List<AdminTransactionDto>(),
+                    TotalSystemFee = 0
+                };
+            }
+
+            decimal totalSystemFee = 0; 
+
+            var transactionList = transactions.Items.Select(t => {
+                decimal percent = t.Policy?.PercentOfSystem ?? 0;
+                decimal feeAmount = t.Amount * (percent / 100);
+
+                totalSystemFee += feeAmount;
+
+                return new AdminTransactionDto
+                {
+                    TransactionId = t.Id,
+                    OrderId = t.OrderId,
+                    CreatedAt = t.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                    TotalAmount = t.Amount,
+                    SystemFee = feeAmount,
+                    AppliedPercent = $"{percent}%",
+                    Status = t.Status.ToString()
+                };
+            }).ToList();
+
+            return new
+            {
+                TotalSystemFee = totalSystemFee, 
+                TransactionCount = transactionList.Count, 
+                Data = transactionList 
             };
         }
     }
