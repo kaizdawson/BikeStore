@@ -20,5 +20,6 @@ namespace BikeStore.Service.Contract
         Task<object> GetCategoryStatisticsAsync(string? search, int pageNumber, int pageSize);
         Task<object> GetDashboardOverviewAsync();
         Task<object> GetTransactionsForAdminAsync();
+        Task<object> GetReportsForAdminAsync();
     }
 }

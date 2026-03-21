@@ -18,8 +18,10 @@ namespace BikeStore.Service.Implementation
         private readonly IGenericRepository<Bike> _bikeRepo;
         private readonly IGenericRepository<Order> _orderRepo;
         private readonly IGenericRepository<Transaction> _transactionRepo;
+        private readonly IGenericRepository<Report> _reportRepo;
+        private readonly IGenericRepository<OrderItem> _orderItemRepo;
 
-        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo, IGenericRepository<Transaction> transactionRepo)
+        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo, IGenericRepository<Transaction> transactionRepo, IGenericRepository<Report> reportRepo, IGenericRepository<OrderItem> orderItemRepo)
         {
             _unitOfWork = unitOfWork;
             _listingRepo = listingRepo;
@@ -27,6 +29,8 @@ namespace BikeStore.Service.Implementation
             _bikeRepo = bikeRepo;
             _orderRepo = orderRepo;
             _transactionRepo = transactionRepo;
+            _reportRepo = reportRepo;
+            _orderItemRepo = orderItemRepo;
         }
 
         public async Task<bool> ApproveListingAsync(Guid id, AdminApproveDto dto)
@@ -514,7 +518,7 @@ namespace BikeStore.Service.Implementation
                 return new AdminTransactionDto
                 {
                     TransactionId = t.Id,
-                    OrderId = t.OrderId,
+                    OrderId = t.OrderId.Value,
                     CreatedAt = t.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                     TotalAmount = t.Amount,
                     SystemFee = feeAmount,
@@ -529,6 +533,74 @@ namespace BikeStore.Service.Implementation
                 TransactionCount = transactionList.Count, 
                 Data = transactionList 
             };
+        }
+
+        public async Task<object> GetReportsForAdminAsync()
+        {
+            // 1. Lấy danh sách Report kèm User và Order
+            // Truyền 0, 0 để Repo hiểu là không phân trang (theo logic trong Repo của bạn)
+            var reportsResult = await _reportRepo.GetAllDataByExpression(
+                r => !r.IsDeleted,
+                0, 0,
+                r => r.CreatedAt,
+                false, // Mới nhất lên đầu
+                r => r.User,
+                r => r.Order
+            );
+
+            var reports = reportsResult.Items ?? new List<Report>();
+            if (!reports.Any()) return new List<AdminReportDto>();
+
+            // 2. Gom tất cả OrderId để lấy thông tin Xe 1 lần duy nhất (Tránh lỗi N+1)
+            var orderIds = reports
+                .Where(r => r.OrderId != null)
+                .Select(r => r.OrderId!)
+                .Distinct()
+                .ToList();
+
+            // 3. Truy vấn bảng OrderItem để lấy Bike và Listing
+            // Lưu ý: oi => oi.Bike.Listing chạy được vì đây là quan hệ 1-1, không phải Collection
+            var orderItemsResult = await _orderItemRepo.GetAllDataByExpression(
+                oi => orderIds.Contains(oi.OrderId),
+                0, 0,
+                oi => oi.Id,
+                true,
+                oi => oi.Bike,
+                oi => oi.Bike.Listing,
+                oi => oi.Bike.Listing.User
+            );
+
+            var orderItems = orderItemsResult.Items ?? new List<OrderItem>();
+
+            // 4. Mapping dữ liệu trong bộ nhớ
+            var result = reports.Select(r =>
+            {
+                // Tìm OrderItem tương ứng với Order của Report này
+                var orderItem = orderItems.FirstOrDefault(oi => oi.OrderId == r.OrderId);
+                var bike = orderItem?.Bike;
+
+                return new AdminReportDto
+                {
+                    ReportId = r.Id,
+                    ReportCode = $"#RP-{r.Id.ToString().Substring(0, 4).ToUpper()}",
+                    CreatedAt = r.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+
+                    ReporterName = r.User?.FullName ?? "N/A",
+                    ReporterPhone = r.User?.PhoneNumber ?? "N/A",
+
+                    // Dữ liệu bike đã được nạp từ bước 3
+                    BikeTitle = bike?.Listing?.Title ?? "Sản phẩm không tồn tại",
+                    BikeCode = bike != null ? $"XE-{bike.Id.ToString().Substring(0, 5).ToUpper()}" : "N/A",
+                    SellerName = bike?.Listing?.User?.FullName,
+
+                    ReportType = r.Type.ToString(),
+                    Reason = r.Reason,
+                    Status = r.Status.ToString(),
+                    OrderId = r.OrderId
+                };
+            }).ToList();
+
+            return result;
         }
     }
 }

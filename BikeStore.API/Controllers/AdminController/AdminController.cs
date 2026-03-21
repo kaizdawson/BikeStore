@@ -154,5 +154,27 @@ namespace BikeStore.API.Controllers.AdminController
                 });
             }
         }
+
+        [HttpGet("list-reports")]
+        public async Task<IActionResult> GetReports()
+        {
+            try
+            {
+                var result = await _adminService.GetReportsForAdminAsync();
+
+                // Nếu result null, trả về danh sách rỗng để tránh lỗi Frontend
+                if (result == null) return Ok(new List<object>());
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Message = "Đã xảy ra lỗi khi lấy danh sách khiếu nại.",
+                    Detail = ex.Message
+                });
+            }
+        }
     }
 }
