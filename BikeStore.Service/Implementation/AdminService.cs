@@ -537,13 +537,11 @@ namespace BikeStore.Service.Implementation
 
         public async Task<object> GetReportsForAdminAsync()
         {
-            // 1. Lấy danh sách Report kèm User và Order
-            // Truyền 0, 0 để Repo hiểu là không phân trang (theo logic trong Repo của bạn)
             var reportsResult = await _reportRepo.GetAllDataByExpression(
                 r => !r.IsDeleted,
                 0, 0,
                 r => r.CreatedAt,
-                false, // Mới nhất lên đầu
+                false, 
                 r => r.User,
                 r => r.Order
             );
@@ -551,15 +549,12 @@ namespace BikeStore.Service.Implementation
             var reports = reportsResult.Items ?? new List<Report>();
             if (!reports.Any()) return new List<AdminReportDto>();
 
-            // 2. Gom tất cả OrderId để lấy thông tin Xe 1 lần duy nhất (Tránh lỗi N+1)
             var orderIds = reports
                 .Where(r => r.OrderId != null)
                 .Select(r => r.OrderId!)
                 .Distinct()
                 .ToList();
 
-            // 3. Truy vấn bảng OrderItem để lấy Bike và Listing
-            // Lưu ý: oi => oi.Bike.Listing chạy được vì đây là quan hệ 1-1, không phải Collection
             var orderItemsResult = await _orderItemRepo.GetAllDataByExpression(
                 oi => orderIds.Contains(oi.OrderId),
                 0, 0,
@@ -572,10 +567,8 @@ namespace BikeStore.Service.Implementation
 
             var orderItems = orderItemsResult.Items ?? new List<OrderItem>();
 
-            // 4. Mapping dữ liệu trong bộ nhớ
             var result = reports.Select(r =>
             {
-                // Tìm OrderItem tương ứng với Order của Report này
                 var orderItem = orderItems.FirstOrDefault(oi => oi.OrderId == r.OrderId);
                 var bike = orderItem?.Bike;
 
@@ -588,7 +581,6 @@ namespace BikeStore.Service.Implementation
                     ReporterName = r.User?.FullName ?? "N/A",
                     ReporterPhone = r.User?.PhoneNumber ?? "N/A",
 
-                    // Dữ liệu bike đã được nạp từ bước 3
                     BikeTitle = bike?.Listing?.Title ?? "Sản phẩm không tồn tại",
                     BikeCode = bike != null ? $"XE-{bike.Id.ToString().Substring(0, 5).ToUpper()}" : "N/A",
                     SellerName = bike?.Listing?.User?.FullName,

@@ -269,61 +269,45 @@ namespace BikeStore.Service.Implementation
             }).ToList();
         }
 
-        public async Task<Guid> BuyNowAsync(Guid bikeId)
+        public async Task<Guid> BuyNowAsync(Guid bikeId, OrderDto dto)
         {
             var userId = GetCurrentUserId();
             if (userId == Guid.Empty) throw new Exception("Vui lòng đăng nhập.");
 
             var bike = await _bikeRepo.GetFirstByExpression(
-                filter: b => b.Id == bikeId && !b.IsDeleted
+                filter: b => b.Id == bikeId && !b.IsDeleted,
+                includeProperties: new Expression<Func<Bike, object>>[] { b => b.Listing! }
             );
 
             if (bike == null) throw new Exception("Sản phẩm không tồn tại.");
             if (bike.Status != BikeStatusEnum.Available)
                 throw new Exception("Sản phẩm này hiện không còn khả dụng.");
 
-            var cart = await _cartRepo.GetFirstByExpression(c => c.UserId == userId);
-            if (cart == null)
+            var order = new Order
             {
-                cart = new Cart { Id = Guid.NewGuid(), UserId = userId };
-                await _cartRepo.Insert(cart);
-                await _unitOfWork.SaveChangeAsync();
-            }
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Status = OrderStatusEnum.Pending,
+                ReceiverName = dto.ReceiverName,
+                ReceiverPhone = dto.ReceiverPhone,
+                ReceiverAddress = dto.ReceiverAddress,
+                TotalAmount = bike.Price, 
+                CreatedAt = DateTimeHelper.NowVN(),
+                UpdatedAt = DateTimeHelper.NowVN()
+            };
 
-            var allItemsInCart = await _itemRepo.GetListByExpression(i => i.CartId == cart.Id);
-
-            if (allItemsInCart.Any())
+            order.OrderItems.Add(new OrderItem
             {
-                foreach (var item in allItemsInCart)
-                {
-                    item.IsSelected = false;
-                }
-                await _itemRepo.UpdateRange(allItemsInCart);
-            }
+                Id = Guid.NewGuid(),
+                OrderId = order.Id,
+                BikeId = bike.Id,
+                UnitPrice = bike.Price
+            });
 
-            var existingItem = allItemsInCart.FirstOrDefault(i => i.BikeId == bikeId);
-
-            if (existingItem != null)
-            {
-                existingItem.IsSelected = true;
-                await _itemRepo.Update(existingItem);
-            }
-            else
-            {
-                var newItem = new CartItem
-                {
-                    Id = Guid.NewGuid(),
-                    CartId = cart.Id,
-                    BikeId = bikeId,
-                    UnitPrice = bike.Price,
-                    IsSelected = true 
-                };
-                await _itemRepo.Insert(newItem);
-            }
-
+            await _orderRepo.Insert(order);
             await _unitOfWork.SaveChangeAsync();
 
-            return cart.Id;
+            return order.Id;
         }
     }
 }
