@@ -46,7 +46,7 @@ namespace BikeStore.Service.Implementation
             var now = DateTimeHelper.NowVN();
 
             var pendingTran = await _tranRepo.GetFirstByExpression(t =>
-                t.OrderId == orderId && !t.IsDeleted && t.Status == TransactionStatusEnum.Pending);
+                t.OrderId == orderId && t.UserId == userId && !t.IsDeleted && t.Status == TransactionStatusEnum.Pending);
 
             if (pendingTran != null)
             {
@@ -74,6 +74,7 @@ namespace BikeStore.Service.Implementation
             {
                 Id = Guid.NewGuid(),
                 OrderId = orderId,
+                UserId = userId,
                 OrderCode = orderCode,
                 Status = TransactionStatusEnum.Pending,
                 Description = orderCode, 
