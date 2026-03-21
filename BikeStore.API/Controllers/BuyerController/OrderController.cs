@@ -84,12 +84,16 @@ namespace BikeStore.API.Controllers
         }
 
         [HttpPost("buy-now/{bikeId}")]
-        public async Task<IActionResult> BuyNow(Guid bikeId, [FromBody] OrderDto dto)
+        public async Task<IActionResult> BuyNow(Guid bikeId)
         {
             try
             {
-                var orderId = await _orderService.BuyNowAsync(bikeId, dto);
-                return Ok(new { OrderId = orderId, Message = "Tạo đơn hàng mua ngay thành công." });
+                var cartId = await _orderService.BuyNowAsync(bikeId);
+                return Ok(new
+                {
+                    CartId = cartId,
+                    Message = "Sản phẩm đã được chọn làm món duy nhất trong giỏ hàng. Đang chuyển hướng..."
+                });
             }
             catch (Exception ex)
             {
