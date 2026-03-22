@@ -18,5 +18,7 @@ namespace BikeStore.Common.DTOs.Seller.Review
 
         public int TotalStars { get; set; }
         public decimal AverageRating { get; set; }
+
+        public List<SellerReviewSummaryOrderDto> Orders { get; set; } = new();
     }
 }

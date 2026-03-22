@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BikeStore.Common.DTOs.Seller.Review
 {
-    public class SellerReviewItemDto
+    public class SellerReviewSummaryOrderDto
     {
         public Guid ReviewId { get; set; }
         public Guid OrderId { get; set; }
@@ -14,15 +14,15 @@ namespace BikeStore.Common.DTOs.Seller.Review
         public int Rating { get; set; }
         public string? Comment { get; set; }
 
+        public DateTime CreatedAt { get; set; }
+
         public Guid ReviewerId { get; set; }
-        public string ReviewerName { get; set; } = default!;
-        public string ReviewerPhone { get; set; } = default!;
+        public string ReviewerName { get; set; } = string.Empty;
+        public string ReviewerPhone { get; set; } = string.Empty;
 
         public string ReceiverName { get; set; } = string.Empty;
         public string ReceiverPhone { get; set; } = string.Empty;
-
         public string ReceiverAddress { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
 
         public List<SellerReviewOrderBikeDto> Bikes { get; set; } = new();
     }
