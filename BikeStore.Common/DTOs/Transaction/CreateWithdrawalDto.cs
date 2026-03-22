@@ -9,5 +9,9 @@ namespace BikeStore.Common.DTOs.Transaction
     public class CreateWithdrawalDto
     {
         public decimal Amount { get; set; }
+
+        public string BankName { get; set; } = default!;
+        public string BankAccountNumber { get; set; } = default!;
+        public string BankAccountName { get; set; } = default!;
     }
 }
