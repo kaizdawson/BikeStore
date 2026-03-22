@@ -71,7 +71,7 @@ namespace BikeStore.Service.Implementation
                 ReceiverName = dto.ReceiverName,
                 ReceiverPhone = dto.ReceiverPhone,
                 ReceiverAddress = dto.ReceiverAddress,
-                TotalAmount = selectedItems.Items.Sum(i => i.UnitPrice),
+                TotalAmount = selectedItems.Items.Sum(i => i.Bike.Price),
                 CreatedAt = DateTimeHelper.NowVN()
             };
 
@@ -82,7 +82,7 @@ namespace BikeStore.Service.Implementation
                     Id = Guid.NewGuid(),
                     OrderId = order.Id,
                     BikeId = item.BikeId,
-                    UnitPrice = item.UnitPrice
+                    UnitPrice = item.Bike.Price,
                 });
 
                 await _itemRepo.Delete(item);
