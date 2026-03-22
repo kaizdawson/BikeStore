@@ -68,6 +68,15 @@ namespace BikeStore.Service.Implementation
                 throw new Exception("Số tiền rút tối thiểu 100.000 VNĐ");
             }
 
+            if (string.IsNullOrWhiteSpace(dto.BankName))
+                throw new Exception("Tên ngân hàng không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(dto.BankAccountNumber))
+                throw new Exception("Số tài khoản không được để trống.");
+
+            if (string.IsNullOrWhiteSpace(dto.BankAccountName))
+                throw new Exception("Tên chủ tài khoản không được để trống.");
+
             var userId = GetCurrentUserId();
 
             var user = await _userRepo.GetById(userId);
@@ -96,6 +105,9 @@ namespace BikeStore.Service.Implementation
                 Status = TransactionStatusEnum.Pending,
                 Description = "Withdrawal",
                 Amount = dto.Amount,
+                BankName = dto.BankName,
+                BankAccountNumber = dto.BankAccountNumber,
+                BankAccountName = dto.BankAccountName,
                 PaidAt = null,
                 PolicyId = null,
                 CreatedAt = now,

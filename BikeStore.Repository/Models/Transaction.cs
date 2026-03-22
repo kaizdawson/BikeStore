@@ -26,6 +26,11 @@ namespace BikeStore.Repository.Models
         public Policy? Policy { get; set; }
 
         public Guid? UserId { get; set; }
-        public User? User { get; set; } 
+        public User? User { get; set; }
+
+
+        public string? BankName { get; set; }          
+        public string? BankAccountNumber { get; set; } 
+        public string? BankAccountName { get; set; }   
     }
 }
