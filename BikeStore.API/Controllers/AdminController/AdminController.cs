@@ -203,5 +203,48 @@ namespace BikeStore.API.Controllers.AdminController
                 return BadRequest(new { Message = ex.Message });
             }
         }
+
+        [HttpGet("withdrawals")]
+        public async Task<IActionResult> GetAllWithdrawals()
+        {
+            try
+            {
+                var data = await _adminService.GetWithdrawalRequestsAsync();
+                
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        [HttpPut("withdrawals/{id}/approve")]
+        public async Task<IActionResult> ApproveWithdrawal(Guid id)
+        {
+            try
+            {
+                await _adminService.ApproveWithdrawalAsync(id);
+                return Ok(new { Message = "Đã xác nhận thanh toán rút tiền thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        [HttpPut("withdrawals/{id}/reject")]
+        public async Task<IActionResult> RejectWithdrawal(Guid id)
+        {
+            try
+            {
+                 await _adminService.RejectWithdrawalAsync(id);
+                return Ok(new { Message = "Đã từ chối yêu cầu và hoàn trả lại tiền vào số dư của User." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
     }
 }

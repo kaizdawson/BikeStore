@@ -632,5 +632,82 @@ namespace BikeStore.Service.Implementation
             await _reportRepo.Update(report);
             return await _unitOfWork.SaveChangeAsync() > 0;
         }
+
+        public async Task<List<object>> GetWithdrawalRequestsAsync()
+        {
+            var result = await _transactionRepo.GetAllDataByExpression(
+                filter: t => t.Description == "Withdrawal"
+                          && t.BankName != null
+                          && t.BankAccountNumber != null
+                          && t.BankAccountName != null
+                          && !t.IsDeleted,
+                pageNumber: 0,
+                pageSize: 0,
+                orderBy: t => t.CreatedAt,
+                isAscending: false,
+                includes: new Expression<Func<Transaction, object>>[] { t => t.User! }
+            );
+
+            var transactions = result.Items ?? new List<Transaction>();
+
+            return transactions.Select(t => (object)new
+            {
+                TransactionId = t.Id,
+                TransactionCode = $"WD-{t.Id.ToString().Substring(0, 6).ToUpper()}",
+                t.Amount,
+                t.BankName,
+                t.BankAccountNumber,
+                t.BankAccountName,
+                t.Description,
+                Status = t.Status.ToString(),
+                RequestDate = t.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
+                RequesterName = t.User?.FullName ?? "N/A"
+            }).ToList();
+        }
+        public async Task<bool> ApproveWithdrawalAsync(Guid transactionId)
+        {
+            var transaction = await _transactionRepo.GetById(transactionId);
+
+            if (transaction == null) throw new Exception("Không tìm thấy giao dịch.");
+            if (transaction.Description != "Withdrawal") throw new Exception("Giao dịch này không phải là yêu cầu rút tiền.");
+
+            transaction.Status = TransactionStatusEnum.Paid;
+            transaction.PaidAt = DateTimeHelper.NowVN();
+            transaction.UpdatedAt = DateTimeHelper.NowVN();
+
+            await _transactionRepo.Update(transaction);
+            return await _unitOfWork.SaveChangeAsync() > 0;
+        }
+
+        public async Task<bool> RejectWithdrawalAsync(Guid transactionId)
+        {
+            // 1. Lấy thông tin giao dịch
+            var transaction = await _transactionRepo.GetById(transactionId);
+
+            if (transaction == null) throw new Exception("Không tìm thấy giao dịch.");
+
+            // Kiểm tra trạng thái để tránh việc hoàn tiền 2 lần (Double Refund)
+            if (transaction.Status != TransactionStatusEnum.Pending)
+                throw new Exception("Chỉ có thể từ chối yêu cầu đang ở trạng thái chờ (Pending).");
+
+            // 2. Lấy thông tin User dựa trên UserId của giao dịch
+            if (transaction.UserId == null) throw new Exception("Giao dịch không hợp lệ (Thiếu UserId).");
+
+            var user = await _userRepo.GetById(transaction.UserId.Value);
+            if (user == null) throw new Exception("Không tìm thấy người dùng để hoàn tiền.");
+
+            // --- LOGIC HOÀN TIỀN ---
+            user.WalletBalance += transaction.Amount;
+
+            // 3. Cập nhật trạng thái giao dịch sang thất bại
+            transaction.Status = TransactionStatusEnum.Failed;
+            transaction.UpdatedAt = DateTimeHelper.NowVN();
+
+            // 4. Lưu đồng thời cả User và Transaction qua UnitOfWork
+            await _userRepo.Update(user);
+            await _transactionRepo.Update(transaction);
+
+            return await _unitOfWork.SaveChangeAsync() > 0;
+        }
     }
 }
