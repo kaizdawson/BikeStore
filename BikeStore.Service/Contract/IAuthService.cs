@@ -20,6 +20,8 @@ namespace BikeStore.Service.Contract
         Task<(bool Success, string Message)> VerifyOtpAsync(OtpVerifyDto dto);
 
         Task<SignUpResult> ResendOtpAsync(string email);
+
+        Task<(bool Success, string Message, string? ErrorType)> LogoutAsync(string refreshToken);
     }
 
 }

@@ -57,18 +57,22 @@ namespace BikeStore.Service.Implementation
 
             foreach (var review in reviewRes.Items)
             {
-                var order = await _orderRepo.GetFirstByExpression(x => x.Id == review.OrderId && !x.IsDeleted);
+                var order = await _orderRepo.GetFirstByExpression(
+                    filter: x => x.Id == review.OrderId && !x.IsDeleted,
+                    includeProperties: new Expression<Func<Order, object>>[]
+                    {
+                        x => x.User
+                    }
+                );
+
                 if (order == null)
-                {
                     continue;
-                }
 
                 var orderItems = await _orderItemRepo.GetListByExpression(x => x.OrderId == review.OrderId);
                 if (orderItems == null || !orderItems.Any())
-                {
                     continue;
-                }
 
+                var myBikeDtos = new List<SellerReviewOrderBikeDto>();
                 var isMyReview = false;
 
                 foreach (var item in orderItems)
@@ -84,14 +88,18 @@ namespace BikeStore.Service.Implementation
                     if (bike?.Listing != null && bike.Listing.UserId == sellerId)
                     {
                         isMyReview = true;
-                        break;
+
+                        myBikeDtos.Add(new SellerReviewOrderBikeDto
+                        {
+                            BikeId = bike.Id,
+                            BikeName = bike.Listing.Title ?? "",
+                            UnitPrice = item.UnitPrice
+                        });
                     }
                 }
 
                 if (!isMyReview)
-                {
                     continue;
-                }
 
                 result.Add(new SellerReviewItemDto
                 {
@@ -99,10 +107,17 @@ namespace BikeStore.Service.Implementation
                     OrderId = review.OrderId,
                     Rating = review.Rating,
                     Comment = review.Comment,
+
                     ReviewerId = order.UserId,
                     ReviewerName = order.User?.FullName ?? "",
                     ReviewerPhone = order.User?.PhoneNumber ?? "",
-                    CreatedAt = review.CreatedAt
+
+                    ReceiverName = order.ReceiverName ?? "",
+                    ReceiverPhone = order.ReceiverPhone ?? "",
+                    ReceiverAddress = order.ReceiverAddress ?? "",
+
+                    CreatedAt = review.CreatedAt,
+                    Bikes = myBikeDtos
                 });
             }
 
@@ -122,44 +137,74 @@ namespace BikeStore.Service.Implementation
             );
 
             var myRatings = new List<int>();
+            var reviewOrders = new List<SellerReviewSummaryOrderDto>();
 
             foreach (var review in reviewRes.Items)
             {
-                var order = await _orderRepo.GetFirstByExpression(x => x.Id == review.OrderId && !x.IsDeleted);
+                var order = await _orderRepo.GetFirstByExpression(
+                    filter: x => x.Id == review.OrderId && !x.IsDeleted,
+                    includeProperties: new Expression<Func<Order, object>>[]
+                    {
+                        x => x.User
+                    }
+                );
+
                 if (order == null)
-                {
                     continue;
-                }
 
                 var orderItems = await _orderItemRepo.GetListByExpression(x => x.OrderId == review.OrderId);
                 if (orderItems == null || !orderItems.Any())
-                {
                     continue;
-                }
 
                 var isMyReview = false;
+                var myBikeDtos = new List<SellerReviewOrderBikeDto>();
 
                 foreach (var item in orderItems)
                 {
                     var bike = await _bikeRepo.GetFirstByExpression(
                         filter: x => x.Id == item.BikeId && !x.IsDeleted,
-                        includeProperties: new System.Linq.Expressions.Expression<Func<Bike, object>>[]
+                        includeProperties: new Expression<Func<Bike, object>>[]
                         {
-                    x => x.Listing
+                            x => x.Listing
                         }
                     );
 
                     if (bike?.Listing != null && bike.Listing.UserId == sellerId)
                     {
                         isMyReview = true;
-                        break;
+
+                        myBikeDtos.Add(new SellerReviewOrderBikeDto
+                        {
+                            BikeId = bike.Id,
+                            BikeName = bike.Listing.Title ?? "",
+                            UnitPrice = item.UnitPrice
+                        });
                     }
                 }
 
-                if (isMyReview)
+                if (!isMyReview)
+                    continue;
+
+                myRatings.Add(review.Rating);
+
+                reviewOrders.Add(new SellerReviewSummaryOrderDto
                 {
-                    myRatings.Add(review.Rating);
-                }
+                    ReviewId = review.Id,
+                    OrderId = review.OrderId,
+                    Rating = review.Rating,
+                    Comment = review.Comment,
+                    CreatedAt = review.CreatedAt,
+
+                    ReviewerId = order.UserId,
+                    ReviewerName = order.User?.FullName ?? "",
+                    ReviewerPhone = order.User?.PhoneNumber ?? "",
+
+                    ReceiverName = order.ReceiverName ?? "",
+                    ReceiverPhone = order.ReceiverPhone ?? "",
+                    ReceiverAddress = order.ReceiverAddress ?? "",
+
+                    Bikes = myBikeDtos
+                });
             }
 
             var totalReviews = myRatings.Count;
@@ -174,7 +219,8 @@ namespace BikeStore.Service.Implementation
                 FourStars = myRatings.Count(x => x == 4),
                 FiveStars = myRatings.Count(x => x == 5),
                 TotalStars = totalStars,
-                AverageRating = totalReviews == 0 ? 0 : Math.Round((decimal)totalStars / totalReviews, 1)
+                AverageRating = totalReviews == 0 ? 0 : Math.Round((decimal)totalStars / totalReviews, 1),
+                Orders = reviewOrders
             };
         }
     }
