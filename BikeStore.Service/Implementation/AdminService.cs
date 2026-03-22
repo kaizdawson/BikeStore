@@ -594,5 +594,43 @@ namespace BikeStore.Service.Implementation
 
             return result;
         }
+
+        public async Task<bool> ProgressReportStatusAsync(Guid reportId)
+        {
+            var report = await _reportRepo.GetById(reportId);
+            if (report == null) throw new Exception("Không tìm thấy đơn tố cáo.");
+
+            if (report.Status == ReportStatusEnum.Pending)
+            {
+                report.Status = ReportStatusEnum.Processing;
+            }
+            else if (report.Status == ReportStatusEnum.Processing)
+            {
+                report.Status = ReportStatusEnum.Resolved;
+            }
+            else
+            {
+                throw new Exception("Trạng thái hiện tại không thể chuyển tiếp (Đã xong hoặc đã bị từ chối).");
+            }
+
+            report.UpdatedAt = DateTimeHelper.NowVN();
+            await _reportRepo.Update(report);
+            return await _unitOfWork.SaveChangeAsync() > 0;
+        }
+
+        public async Task<bool> RejectReportAsync(Guid reportId)
+        {
+            var report = await _reportRepo.GetById(reportId);
+            if (report == null) throw new Exception("Không tìm thấy đơn tố cáo.");
+
+            if (report.Status == ReportStatusEnum.Resolved)
+                throw new Exception("Báo cáo đã xử lý xong, không thể từ chối.");
+
+            report.Status = ReportStatusEnum.Rejected;
+            report.UpdatedAt = DateTimeHelper.NowVN();
+
+            await _reportRepo.Update(report);
+            return await _unitOfWork.SaveChangeAsync() > 0;
+        }
     }
 }

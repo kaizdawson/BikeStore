@@ -21,5 +21,7 @@ namespace BikeStore.Service.Contract
         Task<object> GetDashboardOverviewAsync();
         Task<object> GetTransactionsForAdminAsync();
         Task<object> GetReportsForAdminAsync();
+        Task<bool> ProgressReportStatusAsync(Guid reportId);
+        Task<bool> RejectReportAsync(Guid reportId);
     }
 }

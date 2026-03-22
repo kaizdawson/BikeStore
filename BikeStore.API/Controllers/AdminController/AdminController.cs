@@ -162,7 +162,6 @@ namespace BikeStore.API.Controllers.AdminController
             {
                 var result = await _adminService.GetReportsForAdminAsync();
 
-                // Nếu result null, trả về danh sách rỗng để tránh lỗi Frontend
                 if (result == null) return Ok(new List<object>());
 
                 return Ok(result);
@@ -174,6 +173,34 @@ namespace BikeStore.API.Controllers.AdminController
                     Message = "Đã xảy ra lỗi khi lấy danh sách khiếu nại.",
                     Detail = ex.Message
                 });
+            }
+        }
+
+        [HttpPut("{reportId}/progress")]
+        public async Task<IActionResult> ProgressReport(Guid reportId)
+        {
+            try
+            {
+                var result = await _adminService.ProgressReportStatusAsync(reportId);
+                return Ok(new { Message = "Cập nhật tiến độ báo cáo thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        [HttpPut("{reportId}/reject")]
+        public async Task<IActionResult> RejectReport(Guid reportId)
+        {
+            try
+            {
+                var result = await _adminService.RejectReportAsync(reportId);
+                return Ok(new { Message = "Đã từ chối báo cáo." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
             }
         }
     }
