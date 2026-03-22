@@ -67,5 +67,22 @@ namespace BikeStore.API.Controllers
                 });
             }
         }
+
+        [HttpGet("finance")]
+        public async Task<IActionResult> GetMyFinance()
+        {
+            try
+            {
+                var result = await _walletService.GetMyFinanceAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
+        }
     }
 }

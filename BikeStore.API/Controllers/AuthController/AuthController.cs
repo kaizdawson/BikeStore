@@ -47,18 +47,59 @@ namespace BikeStore.API.Controllers.AuthController
         public async Task<IActionResult> SignIn([FromBody] LoginDto dto)
         {
             var res = await _auth.SignInAsync(dto, Ip(), Device());
+
+            if (res.Success)
+            {
+                Response.Cookies.Append("refreshToken", res.RefreshToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddDays(7)
+                });
+            }
+
             return Ok(res);
         }
 
 
 
         [HttpPost("renew-token")]
-        public async Task<IActionResult> RenewToken([FromBody] RenewTokenDto dto)
+        public async Task<IActionResult> RenewToken()
         {
-            var res = await _auth.RenewTokenAsync(dto.RefreshToken, Ip(), Device());
+            var refreshToken = Request.Cookies["refreshToken"];
+
+            var res = await _auth.RenewTokenAsync(refreshToken ?? "", Ip(), Device());
+
+            if (res.Success)
+            {
+                Response.Cookies.Append("refreshToken", res.RefreshToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false, 
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddDays(7)
+                });
+            }
+
             return Ok(res);
         }
 
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
 
+            var (success, message, errorType) = await _auth.LogoutAsync(refreshToken ?? "");
+
+            Response.Cookies.Delete("refreshToken");
+
+            return Ok(new
+            {
+                success,
+                message,
+                errorType
+            });
+        }
     }
 }

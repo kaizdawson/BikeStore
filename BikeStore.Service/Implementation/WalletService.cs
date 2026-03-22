@@ -14,17 +14,32 @@ namespace BikeStore.Service.Implementation
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IGenericRepository<User> _userRepo;
         private readonly IGenericRepository<Transaction> _transactionRepo;
+        private readonly IGenericRepository<Order> _orderRepo;
+        private readonly IGenericRepository<OrderItem> _orderItemRepo;
+        private readonly IGenericRepository<Policy> _policyRepo;
+        private readonly IGenericRepository<Bike> _bikeRepo;
+        private readonly IGenericRepository<Listing> _listingRepo;
         private readonly IUnitOfWork _unitOfWork;
 
         public WalletService(
             IHttpContextAccessor httpContextAccessor,
             IGenericRepository<User> userRepo,
             IGenericRepository<Transaction> transactionRepo,
+            IGenericRepository<Order> orderRepo,
+            IGenericRepository<OrderItem> orderItemRepo,
+            IGenericRepository<Policy> policyRepo,
+            IGenericRepository<Bike> bikeRepo,
+            IGenericRepository<Listing> listingRepo,
             IUnitOfWork unitOfWork)
         {
             _httpContextAccessor = httpContextAccessor;
             _userRepo = userRepo;
             _transactionRepo = transactionRepo;
+            _orderRepo = orderRepo;
+            _orderItemRepo = orderItemRepo;
+            _policyRepo = policyRepo;
+            _bikeRepo = bikeRepo;
+            _listingRepo = listingRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -160,6 +175,186 @@ namespace BikeStore.Service.Implementation
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt
             }).ToList();
+        }
+
+        public async Task<SellerFinanceResponseDto> GetMyFinanceAsync()
+        {
+            var sellerId = GetCurrentUserId();
+
+            var seller = await _userRepo.GetById(sellerId);
+            if (seller == null || seller.IsDeleted)
+                throw new Exception("Không tìm thấy người bán.");
+
+            
+            var orderRes = await _orderRepo.GetAllDataByExpression(
+                filter: o => !o.IsDeleted && o.Status == OrderStatusEnum.Completed,
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: o => o.UpdatedAt ?? o.CreatedAt,
+                isAscending: false
+            );
+
+            var orders = orderRes.Items?.ToList() ?? new List<Order>();
+            if (!orders.Any())
+            {
+                return new SellerFinanceResponseDto
+                {
+                    AvailableBalance = seller.WalletBalance,
+                    TotalRevenue = 0,
+                    TotalServiceFee = 0,
+                    NetProfit = 0,
+                    TotalOrders = 0,
+                    Orders = new List<SellerFinanceOrderItemDto>()
+                };
+            }
+
+            
+            var orderIds = orders.Select(o => o.Id).ToList();
+
+            var orderItemsRes = await _orderItemRepo.GetAllDataByExpression(
+                filter: oi => orderIds.Contains(oi.OrderId),
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: oi => oi.Id,
+                isAscending: true
+            );
+
+            var orderItems = orderItemsRes.Items?.ToList() ?? new List<OrderItem>();
+            if (!orderItems.Any())
+            {
+                return new SellerFinanceResponseDto
+                {
+                    AvailableBalance = seller.WalletBalance,
+                    TotalRevenue = 0,
+                    TotalServiceFee = 0,
+                    NetProfit = 0,
+                    TotalOrders = 0,
+                    Orders = new List<SellerFinanceOrderItemDto>()
+                };
+            }
+
+            
+            var bikeIds = orderItems.Select(oi => oi.BikeId).Distinct().ToList();
+
+            var bikesRes = await _bikeRepo.GetAllDataByExpression(
+                filter: b => bikeIds.Contains(b.Id) && !b.IsDeleted,
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: b => b.CreatedAt,
+                isAscending: false
+            );
+
+            var bikes = bikesRes.Items?.ToList() ?? new List<Bike>();
+            if (!bikes.Any())
+            {
+                return new SellerFinanceResponseDto
+                {
+                    AvailableBalance = seller.WalletBalance,
+                    TotalRevenue = 0,
+                    TotalServiceFee = 0,
+                    NetProfit = 0,
+                    TotalOrders = 0,
+                    Orders = new List<SellerFinanceOrderItemDto>()
+                };
+            }
+
+            
+            var listingIds = bikes.Select(b => b.ListingId).Distinct().ToList();
+
+            var listingRes = await _listingRepo.GetAllDataByExpression(
+                filter: l => listingIds.Contains(l.Id) && l.UserId == sellerId && !l.IsDeleted,
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: l => l.CreatedAt,
+                isAscending: false
+            );
+
+            var ownedListingIds = listingRes.Items?
+                .Select(l => l.Id)
+                .ToHashSet() ?? new HashSet<Guid>();
+
+            var sellerBikeMap = bikes
+                .Where(b => ownedListingIds.Contains(b.ListingId))
+                .ToDictionary(b => b.Id, b => b);
+
+            if (!sellerBikeMap.Any())
+            {
+                return new SellerFinanceResponseDto
+                {
+                    AvailableBalance = seller.WalletBalance,
+                    TotalRevenue = 0,
+                    TotalServiceFee = 0,
+                    NetProfit = 0,
+                    TotalOrders = 0,
+                    Orders = new List<SellerFinanceOrderItemDto>()
+                };
+            }
+
+            var sellerBikeIds = sellerBikeMap.Keys.ToHashSet();
+            var orderMap = orders.ToDictionary(o => o.Id, o => o);
+
+            
+            var policyRes = await _policyRepo.GetAllDataByExpression(
+                filter: p => !p.IsDeleted,
+                pageNumber: 1,
+                pageSize: 5000,
+                orderBy: p => p.AppliedDate,
+                isAscending: true
+            );
+
+            var policies = policyRes.Items?.ToList() ?? new List<Policy>();
+
+            decimal totalRevenue = 0;
+            decimal totalServiceFee = 0;
+            var detailRows = new List<SellerFinanceOrderItemDto>();
+
+            
+            foreach (var oi in orderItems.Where(x => sellerBikeIds.Contains(x.BikeId)))
+            {
+                if (!orderMap.TryGetValue(oi.OrderId, out var order))
+                    continue;
+
+                if (!sellerBikeMap.TryGetValue(oi.BikeId, out var bike))
+                    continue;
+
+                var completedDate = order.UpdatedAt ?? order.CreatedAt;
+
+                var matchedPolicy = policies
+                    .Where(p => p.AppliedDate <= completedDate)
+                    .OrderByDescending(p => p.AppliedDate)
+                    .FirstOrDefault();
+
+                decimal percentFee = matchedPolicy?.PercentOfSystem ?? 0;
+                decimal salePrice = oi.UnitPrice; 
+                decimal serviceFee = salePrice * percentFee / 100m;
+                decimal netProfit = salePrice - serviceFee;
+
+                totalRevenue += salePrice;
+                totalServiceFee += serviceFee;
+
+                detailRows.Add(new SellerFinanceOrderItemDto
+                {
+                    OrderId = order.Id,
+                    OrderCode = $"ORD-{order.Id.ToString()[..8].ToUpper()}",
+                    ProductName = $"{bike.Brand} {bike.Category}",
+                    CompletedDate = completedDate,
+                    SalePrice = salePrice,
+                    ServiceFee = serviceFee,
+                    NetProfit = netProfit
+                });
+            }
+
+            return new SellerFinanceResponseDto
+            {
+                AvailableBalance = seller.WalletBalance,
+                TotalRevenue = totalRevenue,
+                TotalServiceFee = totalServiceFee,
+                NetProfit = totalRevenue - totalServiceFee,
+                TotalOrders = detailRows.Select(x => x.OrderId).Distinct().Count(),
+                Orders = detailRows
+                    .OrderByDescending(x => x.CompletedDate)
+                    .ToList()
+            };
         }
     }
 }

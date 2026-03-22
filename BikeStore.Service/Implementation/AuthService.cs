@@ -267,5 +267,28 @@ namespace BikeStore.Service.Implementation
             };
         }
 
+
+        public async Task<(bool Success, string Message, string? ErrorType)> LogoutAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return (false, "Refresh token không được để trống.", "Invalid");
+
+            var storedToken = await _refreshRepo.GetFirstByExpression(x => x.Token == refreshToken);
+
+            if (storedToken == null)
+                return (false, "Refresh token không hợp lệ.", "Invalid");
+
+            if (storedToken.Revoked)
+                return (false, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "Expired");
+
+            if (storedToken.ExpiredAt <= DateTimeHelper.NowVN())
+                return (false, "Refresh token đã hết hạn.", "Expired");
+
+            storedToken.Revoked = true;
+            await _refreshRepo.Update(storedToken);
+            await _uow.SaveChangeAsync();
+
+            return (true, "Đăng xuất thành công.", null);
+        }
     }
 }

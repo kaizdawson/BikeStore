@@ -13,5 +13,7 @@ namespace BikeStore.Service.Contract
         Task<WithdrawalResponseDto> CreateWithdrawalAsync(CreateWithdrawalDto dto);
 
         Task<List<WithdrawalHistoryItemDto>> GetMyWithdrawalsAsync();
+
+        Task<SellerFinanceResponseDto> GetMyFinanceAsync();
     }
 }
