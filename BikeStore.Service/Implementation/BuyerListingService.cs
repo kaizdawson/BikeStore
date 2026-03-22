@@ -103,7 +103,7 @@ namespace BikeStore.Service.Implementation
                 var totalReviews = reviews.Count;
                 var avgRating = totalReviews > 0 ? reviews.Average(r => r.Rating) : 0;
 
-                var latestReviews = reviews.Take(3).Select(r => new {
+                var latestReviews = reviews.Take(10).Select(r => new {
                     ReviewerName = r.Order?.User?.FullName ?? "Người dùng ẩn danh",
                     r.Rating,
                     r.Comment,

@@ -63,7 +63,7 @@ namespace BikeStore.Service.Implementation
                 Id = i.Id,
                 BikeId = i.BikeId,
                 BikeTitle = i.Bike.Listing.Title, 
-                UnitPrice = i.UnitPrice,
+                UnitPrice = i.Bike.Price,
                 ImageUrl = i.Bike.Medias.FirstOrDefault()?.Image, 
                 IsSelected = i.IsSelected,
                 BikeStatus = i.Bike.Status.ToString()
