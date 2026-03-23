@@ -77,8 +77,9 @@ namespace BikeStore.API.Controllers.AuthController
                 Response.Cookies.Append("refreshToken", res.RefreshToken, new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = false, 
-                    SameSite = SameSiteMode.Lax,
+                    Secure = true, 
+                    SameSite = SameSiteMode.None,
+                    Path = "/",
                     Expires = DateTimeOffset.UtcNow.AddDays(7)
                 });
             }
