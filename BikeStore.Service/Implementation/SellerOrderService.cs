@@ -20,6 +20,10 @@ namespace BikeStore.Service.Implementation
         private readonly IGenericRepository<Bike> _bikeRepo;
         private readonly IGenericRepository<Media> _mediaRepo;
         private readonly IGenericRepository<Listing> _listingRepo;
+        private readonly IGenericRepository<User> _userRepo;
+        private readonly IGenericRepository<Transaction> _transactionRepo;
+        private readonly IEmailService _emailService;
+        private readonly IEmailTemplateService _emailTemplateService;
         private readonly IUnitOfWork _uow;
 
         public SellerOrderService(
@@ -28,6 +32,10 @@ namespace BikeStore.Service.Implementation
             IGenericRepository<Bike> bikeRepo,
             IGenericRepository<Media> mediaRepo,
             IGenericRepository<Listing> listingRepo,
+            IGenericRepository<User> userRepo,
+            IGenericRepository<Transaction> transactionRepo,
+            IEmailService emailService,
+            IEmailTemplateService emailTemplateService,
             IUnitOfWork uow)
         {
             _orderRepo = orderRepo;
@@ -35,6 +43,10 @@ namespace BikeStore.Service.Implementation
             _bikeRepo = bikeRepo;
             _mediaRepo = mediaRepo;
             _listingRepo = listingRepo;
+            _userRepo = userRepo;
+            _transactionRepo = transactionRepo;
+            _emailService = emailService;
+            _emailTemplateService = emailTemplateService;
             _uow = uow;
         }
 
@@ -96,6 +108,26 @@ namespace BikeStore.Service.Implementation
 
             await _orderRepo.Update(order);
             await _uow.SaveChangeAsync();
+
+            var buyer = await _userRepo.GetFirstByExpression(u => u.Id == order.UserId && !u.IsDeleted);
+            var transaction = await _transactionRepo.GetFirstByExpression(t => t.OrderId == order.Id && !t.IsDeleted);
+
+            if (buyer != null && !string.IsNullOrWhiteSpace(buyer.Email))
+            {
+                var orderCode = transaction?.OrderCode ?? order.Id.ToString();
+
+                var html = _emailTemplateService.BuildOrderCompletedThankYouEmail(
+                    buyer.FullName,
+                    orderCode
+                );
+
+                await _emailService.SendEmailAsync(
+                    buyer.Email,
+                    "Cảm ơn bạn đã mua hàng tại BikeStore",
+                    html,
+                    true
+                );
+            }
 
             return await BuildOrderDtoAsync(sellerId, order);
         }
