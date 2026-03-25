@@ -1,4 +1,5 @@
 ﻿using BikeStore.Common.DTOs;
+using BikeStore.Common.Enums;
 using Microsoft.AspNetCore.Identity.Data;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,8 @@ namespace BikeStore.Service.Contract
         Task<SignUpResult> ResendOtpAsync(string email);
 
         Task<(bool Success, string Message, string? ErrorType)> LogoutAsync(string refreshToken);
+
+        Task<LoginResult> GoogleSignInAsync(string idToken, RoleEnum role, string? ipAddress, string? deviceInfo);
     }
 
 }
