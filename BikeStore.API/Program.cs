@@ -68,6 +68,7 @@ builder.Services.AddScoped<ISellerDashboardService, SellerDashboardService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ISellerReportService, SellerReportService>();
 builder.Services.AddScoped<ISellerReviewService, SellerReviewService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

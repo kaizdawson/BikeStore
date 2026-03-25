@@ -20,6 +20,10 @@ public class InspectorService : IInspectorService
     private readonly IGenericRepository<Inspection> _inspectionRepo;
     private readonly IGenericRepository<Media> _mediaRepo;
     private readonly IGenericRepository<Listing> _listingRepo;
+    private readonly IEmailService _emailService;
+    private readonly IEmailTemplateService _emailTemplateService;
+    private readonly IGenericRepository<User> _userRepo;
+
     private readonly IUnitOfWork _uow;
 
     public InspectorService(
@@ -27,6 +31,9 @@ public class InspectorService : IInspectorService
         IGenericRepository<Inspection> inspectionRepo,
         IGenericRepository<Media> mediaRepo,
         IGenericRepository<Listing> listingRepo,
+        IGenericRepository<User> userRepo,
+        IEmailService emailService,
+        IEmailTemplateService emailTemplateService,
         IUnitOfWork uow)
     {
         _bikeRepo = bikeRepo;
@@ -34,6 +41,9 @@ public class InspectorService : IInspectorService
         _mediaRepo = mediaRepo;
         _listingRepo = listingRepo;
         _uow = uow;
+        _userRepo = userRepo;
+        _emailService = emailService;
+        _emailTemplateService = emailTemplateService;
     }
 
 
@@ -275,6 +285,30 @@ public class InspectorService : IInspectorService
         await _bikeRepo.Update(bike);
         await _listingRepo.Update(bike.Listing);
         await _uow.SaveChangeAsync();
+
+        var listing = await _listingRepo.GetFirstByExpression(l => l.Id == bike.ListingId && !l.IsDeleted);
+        if (listing != null)
+        {
+            var seller = await _userRepo.GetFirstByExpression(u => u.Id == listing.UserId && !u.IsDeleted);
+
+            if (seller != null && !string.IsNullOrWhiteSpace(seller.Email))
+            {
+                var bikeName = $"{bike.Brand} {bike.Category}".Trim();
+
+                var html = _emailTemplateService.BuildBikeRejectedEmail(
+                    seller.FullName,
+                    bikeName,
+                    null
+                );
+
+                await _emailService.SendEmailAsync(
+                    seller.Email,
+                    "Xe của bạn đã bị từ chối kiểm duyệt",
+                    html,
+                    true
+                );
+            }
+        }
 
         return (true, "Đã từ chối kiểm duyệt. Bike chuyển sang Disabled và Listing chuyển sang Rejected.");
     }

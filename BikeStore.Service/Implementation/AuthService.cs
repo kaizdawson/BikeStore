@@ -24,6 +24,7 @@ namespace BikeStore.Service.Implementation
         private readonly IJwtService _jwt;
         private readonly IEmailService _email;
         private readonly IMemoryCache _cache;
+        private readonly IEmailTemplateService _emailTemplateService;
 
         private const int OTP_MINUTES = 2;
         private const int REFRESH_DAYS = 7;
@@ -34,7 +35,8 @@ namespace BikeStore.Service.Implementation
             IUnitOfWork uow,
             IJwtService jwt,
             IEmailService email,
-            IMemoryCache cache)
+            IMemoryCache cache,
+            IEmailTemplateService emailTemplateService)
         {
             _userRepo = userRepo;
             _refreshRepo = refreshRepo;
@@ -42,6 +44,7 @@ namespace BikeStore.Service.Implementation
             _jwt = jwt;
             _email = email;
             _cache = cache;
+            _emailTemplateService = emailTemplateService;
         }
 
         private static string NormalizeEmail(string email) => email.Trim().ToLower();
@@ -99,10 +102,13 @@ namespace BikeStore.Service.Implementation
             var otp = OtpGenerator.GenerateOtp(6);
             _cache.Set(OtpCacheKey(normalized), otp, TimeSpan.FromMinutes(OTP_MINUTES));
 
+            var html = _emailTemplateService.BuildOtpEmail(user.FullName, otp, OTP_MINUTES);
+
             await _email.SendEmailAsync(
                 normalized,
                 "Xác thực tài khoản BikeStore",
-                $"Mã OTP của bạn là: {otp} (hết hạn trong {OTP_MINUTES} phút)"
+                html,
+                true
             );
         }
 

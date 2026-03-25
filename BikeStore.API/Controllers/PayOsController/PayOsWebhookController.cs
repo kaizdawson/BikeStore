@@ -2,6 +2,7 @@
 using BikeStore.Common.Helpers;
 using BikeStore.Repository.Contract;
 using BikeStore.Repository.Models;
+using BikeStore.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -20,6 +21,8 @@ public class PayOsWebhookController : ControllerBase
     private readonly IGenericRepository<Listing> _listingRepo;
     private readonly IGenericRepository<User> _userRepo;
     private readonly IGenericRepository<Policy> _policyRepo;
+    private readonly IEmailService _emailService;
+    private readonly IEmailTemplateService _emailTemplateService;
     private readonly IUnitOfWork _uow;
 
     public PayOsWebhookController(
@@ -30,6 +33,8 @@ public class PayOsWebhookController : ControllerBase
         IGenericRepository<Listing> listingRepo,
         IGenericRepository<User> userRepo,
         IGenericRepository<Policy> policyRepo,
+        IEmailService emailService,
+        IEmailTemplateService emailTemplateService,
         IUnitOfWork uow)
     {
         _tranRepo = tranRepo;
@@ -39,6 +44,8 @@ public class PayOsWebhookController : ControllerBase
         _listingRepo = listingRepo;
         _userRepo = userRepo;
         _policyRepo = policyRepo;
+        _emailService = emailService;
+        _emailTemplateService = emailTemplateService;
         _uow = uow;
     }
 
@@ -174,6 +181,24 @@ public class PayOsWebhookController : ControllerBase
         }
 
         await _uow.SaveChangeAsync();
+
+        var buyer = await _userRepo.GetFirstByExpression(u => u.Id == order.UserId && !u.IsDeleted);
+
+        if (buyer != null && !string.IsNullOrWhiteSpace(buyer.Email))
+        {
+            var html = _emailTemplateService.BuildPaymentSuccessEmail(
+                buyer.FullName,
+                tran.OrderCode ?? order.Id.ToString(),
+                tran.Amount
+            );
+
+            await _emailService.SendEmailAsync(
+                buyer.Email,
+                "Thanh toán đơn hàng thành công",
+                html,
+                true
+            );
+        }
 
         return Ok(new
         {

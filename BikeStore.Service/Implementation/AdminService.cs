@@ -20,8 +20,10 @@ namespace BikeStore.Service.Implementation
         private readonly IGenericRepository<Transaction> _transactionRepo;
         private readonly IGenericRepository<Report> _reportRepo;
         private readonly IGenericRepository<OrderItem> _orderItemRepo;
+        private readonly IEmailService _emailService;
+        private readonly IEmailTemplateService _emailTemplateService;
 
-        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo, IGenericRepository<Transaction> transactionRepo, IGenericRepository<Report> reportRepo, IGenericRepository<OrderItem> orderItemRepo)
+        public AdminService(IUnitOfWork unitOfWork, IGenericRepository<Listing> listingRepo, IGenericRepository<User> userRepo, IGenericRepository<Bike> bikeRepo, IGenericRepository<Order> orderRepo, IGenericRepository<Transaction> transactionRepo, IGenericRepository<Report> reportRepo, IGenericRepository<OrderItem> orderItemRepo, IEmailService emailService,IEmailTemplateService emailTemplateService)
         {
             _unitOfWork = unitOfWork;
             _listingRepo = listingRepo;
@@ -31,6 +33,8 @@ namespace BikeStore.Service.Implementation
             _transactionRepo = transactionRepo;
             _reportRepo = reportRepo;
             _orderItemRepo = orderItemRepo;
+            _emailService = emailService;
+            _emailTemplateService = emailTemplateService;
         }
 
         public async Task<bool> ApproveListingAsync(Guid id, AdminApproveDto dto)
@@ -46,7 +50,31 @@ namespace BikeStore.Service.Implementation
             listing.UpdatedAt = DateTimeHelper.NowVN();
 
             await _listingRepo.Update(listing);
-            return await _unitOfWork.SaveChangeAsync() > 0;
+
+            var result = await _unitOfWork.SaveChangeAsync();
+
+            if (result > 0 && listing.Status == ListingStatusEnum.Rejected)
+            {
+                var seller = await _userRepo.GetFirstByExpression(u => u.Id == listing.UserId && !u.IsDeleted);
+
+                if (seller != null && !string.IsNullOrWhiteSpace(seller.Email))
+                {
+                    var html = _emailTemplateService.BuildListingRejectedEmail(
+                        seller.FullName,
+                        listing.Title,
+                        null
+                    );
+
+                    await _emailService.SendEmailAsync(
+                        seller.Email,
+                        "Listing của bạn đã bị từ chối",
+                        html,
+                        true
+                    );
+                }
+            }
+
+            return result > 0;
         }
 
         public async Task<List<object>> GetPendingListingsAsync()
@@ -337,7 +365,29 @@ namespace BikeStore.Service.Implementation
             user.UpdatedAt = DateTimeHelper.NowVN();
 
             await _userRepo.Update(user);
+
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                string subject;
+                string html;
+
+                if (user.Status == UserStatusEnum.Banned)
+                {
+                    subject = "Thông báo khóa tài khoản BikeStore";
+                    html = _emailTemplateService.BuildUserLockEmail(user.FullName);
+                }
+                else
+                {
+                    subject = "Thông báo mở khóa tài khoản BikeStore";
+                    html = _emailTemplateService.BuildUserUnlockEmail(user.FullName);
+                }
+
+                await _emailService.SendEmailAsync(user.Email, subject, html, true);
+            }
+
             return await _unitOfWork.SaveChangeAsync() > 0;
+
+
         }
 
         public async Task<object> GetBrandStatisticsAsync(string? search, int pageNumber, int pageSize)
