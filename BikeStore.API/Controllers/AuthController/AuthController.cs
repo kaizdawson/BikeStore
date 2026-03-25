@@ -103,5 +103,36 @@ namespace BikeStore.API.Controllers.AuthController
                 errorType
             });
         }
+
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto dto)
+        {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var deviceInfo = Request.Headers["User-Agent"].ToString();
+
+            var result = await _auth.GoogleSignInAsync(dto.IdToken, dto.Role, ipAddress, deviceInfo);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            Response.Cookies.Append("refreshToken", result.RefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(7)
+            });
+
+            return Ok(new
+            {
+                success = result.Success,
+                token = result.Token,
+                refreshToken = result.RefreshToken,
+                message = result.Message,
+                role = result.Role
+            });
+        }
+
     }
 }

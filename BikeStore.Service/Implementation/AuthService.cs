@@ -5,6 +5,7 @@ using BikeStore.Repository.Contract;
 using BikeStore.Repository.Models;
 using BikeStore.Service.Contract;
 using BikeStore.Service.Helpers;
+using FirebaseAdmin.Auth;
 using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
@@ -290,5 +291,172 @@ namespace BikeStore.Service.Implementation
 
             return (true, "Đăng xuất thành công.", null);
         }
+
+
+        public async Task<LoginResult> GoogleSignInAsync(string idToken, RoleEnum role, string? ipAddress, string? deviceInfo)
+        {
+            if (string.IsNullOrWhiteSpace(idToken))
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = "IdToken không được để trống."
+                };
+            }
+
+            // Chỉ cho phép login Google với 2 role này
+            if (role != RoleEnum.BUYER && role != RoleEnum.SELLER)
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = "Role không hợp lệ."
+                };
+            }
+
+            try
+            {
+                var decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
+
+                var firebaseUid = decodedToken.Uid;
+                var email = decodedToken.Claims.ContainsKey("email")
+                    ? decodedToken.Claims["email"]?.ToString()?.Trim().ToLower()
+                    : null;
+
+                var fullName = decodedToken.Claims.ContainsKey("name")
+                    ? decodedToken.Claims["name"]?.ToString()?.Trim()
+                    : null;
+
+                var avatar = decodedToken.Claims.ContainsKey("picture")
+                    ? decodedToken.Claims["picture"]?.ToString()
+                    : null;
+
+                if (string.IsNullOrWhiteSpace(firebaseUid))
+                {
+                    return new LoginResult
+                    {
+                        Success = false,
+                        Message = "Không lấy được Firebase UID."
+                    };
+                }
+
+                User? user = await _userRepo.GetFirstByExpression(x => x.FirebaseUID == firebaseUid);
+
+                if (user == null && !string.IsNullOrWhiteSpace(email))
+                {
+                    user = await _userRepo.GetFirstByExpression(x => x.Email == email);
+
+                    if (user != null)
+                    {
+                        user.FirebaseUID = firebaseUid;
+
+                        if (string.IsNullOrWhiteSpace(user.AvtUrl) && !string.IsNullOrWhiteSpace(avatar))
+                            user.AvtUrl = avatar;
+
+                        if (string.IsNullOrWhiteSpace(user.FullName) && !string.IsNullOrWhiteSpace(fullName))
+                            user.FullName = fullName;
+
+                        if (user.Status == UserStatusEnum.InActive)
+                            user.Status = UserStatusEnum.Active;
+
+                        await _userRepo.Update(user);
+                        await _uow.SaveChangeAsync();
+                    }
+                }
+
+                // Chưa có account => tạo mới theo role FE chọn
+                if (user == null)
+                {
+                    user = new User
+                    {
+                        Id = Guid.NewGuid(),
+                        FirebaseUID = firebaseUid,
+                        Email = email ?? string.Empty,
+                        FullName = !string.IsNullOrWhiteSpace(fullName) ? fullName : "Google User",
+                        PhoneNumber = string.Empty,
+                        Password = string.Empty,
+                        AvtUrl = avatar,
+                        Role = role,
+                        WalletBalance = 0,
+                        Status = UserStatusEnum.Active
+                    };
+
+                    await _userRepo.Insert(user);
+                    await _uow.SaveChangeAsync();
+                }
+                else
+                {
+                    if (user.Status == UserStatusEnum.Banned)
+                    {
+                        return new LoginResult
+                        {
+                            Success = false,
+                            Message = "Tài khoản đã bị khóa."
+                        };
+                    }
+
+                    // Nếu account đã tồn tại mà role login khác role account
+                    if (user.Role != role)
+                    {
+                        return new LoginResult
+                        {
+                            Success = false,
+                            Message = $"Tài khoản này đã đăng ký với vai trò {user.Role}, không thể đăng nhập với vai trò {role}."
+                        };
+                    }
+                }
+
+                var oldTokens = await _refreshRepo.GetAllDataByExpression(
+                    x => x.UserId == user.Id && !x.Revoked,
+                    0, 0, null, true
+                );
+
+                if (oldTokens.Items != null)
+                {
+                    foreach (var item in oldTokens.Items)
+                    {
+                        item.Revoked = true;
+                        await _refreshRepo.Update(item);
+                    }
+                }
+
+                var refreshToken = RefreshTokenGenerator.Generate();
+
+                var refreshEntity = new RefreshToken
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    Token = refreshToken,
+                    CreatedAt = DateTimeHelper.NowVN(),
+                    ExpiredAt = DateTimeHelper.NowVN().AddDays(7),
+                    Revoked = false,
+                    IpAddress = ipAddress,
+                    DeviceInfo = deviceInfo
+                };
+
+                await _refreshRepo.Insert(refreshEntity);
+                await _uow.SaveChangeAsync();
+
+                var (accessToken, _) = _jwt.GenerateAccessToken(user);
+
+                return new LoginResult
+                {
+                    Success = true,
+                    Message = "Đăng nhập Google thành công.",
+                    Token = accessToken,
+                    RefreshToken = refreshToken,
+                    Role = user.Role.ToString()
+                };
+            }
+            catch (Exception ex)
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = $"Google login thất bại: {ex.Message}"
+                };
+            }
+        }
+
     }
 }

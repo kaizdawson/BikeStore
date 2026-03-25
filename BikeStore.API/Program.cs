@@ -8,11 +8,14 @@ using BikeStore.Service.BackgroundJobs;
 using BikeStore.Service.Contract;
 using BikeStore.Service.Implement;
 using BikeStore.Service.Implementation;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +26,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
+var firebaseConfig = builder.Configuration.GetSection("Firebase").Get<Dictionary<string, object>>();
+
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromJson(JsonSerializer.Serialize(firebaseConfig))
+});
 
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("CloudinarySettings"));
