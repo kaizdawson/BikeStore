@@ -7,6 +7,7 @@ using BikeStore.Service.Contract;
 using BikeStore.Service.Helpers;
 using FirebaseAdmin.Auth;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,9 +26,11 @@ namespace BikeStore.Service.Implementation
         private readonly IEmailService _email;
         private readonly IMemoryCache _cache;
         private readonly IEmailTemplateService _emailTemplateService;
+        private readonly IConfiguration _config;
 
         private const int OTP_MINUTES = 2;
         private const int REFRESH_DAYS = 7;
+        private const int RESET_PASSWORD_MINUTES = 15;
 
         public AuthService(
             IGenericRepository<User> userRepo,
@@ -36,7 +39,8 @@ namespace BikeStore.Service.Implementation
             IJwtService jwt,
             IEmailService email,
             IMemoryCache cache,
-            IEmailTemplateService emailTemplateService)
+            IEmailTemplateService emailTemplateService,
+            IConfiguration config)
         {
             _userRepo = userRepo;
             _refreshRepo = refreshRepo;
@@ -45,6 +49,7 @@ namespace BikeStore.Service.Implementation
             _email = email;
             _cache = cache;
             _emailTemplateService = emailTemplateService;
+            _config = config;
         }
 
         private static string NormalizeEmail(string email) => email.Trim().ToLower();
@@ -464,5 +469,112 @@ namespace BikeStore.Service.Implementation
             }
         }
 
+
+        public async Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
+        {
+            var user = await _userRepo.GetById(userId);
+            if (user == null)
+                return (false, "Người dùng không tồn tại.");
+
+            if (string.IsNullOrWhiteSpace(user.Password))
+                return (false, "Tài khoản này đăng nhập bằng Google, không thể đổi mật khẩu theo cách này.");
+
+            if (!PasswordHasher.Verify(dto.CurrentPassword, user.Password))
+                return (false, "Mật khẩu hiện tại không đúng.");
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return (false, "Mật khẩu xác nhận không khớp.");
+
+            if (dto.CurrentPassword == dto.NewPassword)
+                return (false, "Mật khẩu mới không được trùng với mật khẩu hiện tại.");
+
+            user.Password = PasswordHasher.Hash(dto.NewPassword);
+
+            await _userRepo.Update(user);
+            await _uow.SaveChangeAsync();
+
+            var html = _emailTemplateService.BuildPasswordChangedEmail(user.FullName);
+            await _email.SendEmailAsync(user.Email, "Mật khẩu BikeStore đã được thay đổi", html, true);
+
+            return (true, "Đổi mật khẩu thành công.");
+        }
+
+        public async Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto)
+        {
+            var email = NormalizeEmail(dto.Email);
+
+            var user = await _userRepo.GetFirstByExpression(u => u.Email == email);
+            if (user == null)
+                return (false, "Email không tồn tại trong hệ thống.");
+
+            if (string.IsNullOrWhiteSpace(user.Password))
+                return (false, "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng đăng nhập Google.");
+
+            if (user.Status == UserStatusEnum.Banned)
+                return (false, "Tài khoản đã bị khóa.");
+
+            var token = _jwt.GenerateResetPasswordToken(user.Email);
+
+            var resetPasswordUrl = _config["AppSettings:ResetPasswordUrl"];
+            if (string.IsNullOrWhiteSpace(resetPasswordUrl))
+                resetPasswordUrl = "http://localhost:3000/reset-password";
+
+            var resetLink = $"{resetPasswordUrl}?token={Uri.EscapeDataString(token)}";
+
+            var html = _emailTemplateService.BuildForgotPasswordEmail(user.FullName, resetLink, RESET_PASSWORD_MINUTES);
+
+            await _email.SendEmailAsync(
+                user.Email,
+                "Yêu cầu đặt lại mật khẩu BikeStore",
+                html,
+                true
+            );
+
+            return (true, "Link đặt lại mật khẩu đã được gửi tới email.");
+        }
+
+        public async Task<(bool Success, string Message)> ResetPasswordByLinkAsync(string token, ResetPasswordByLinkDto dto)
+        {
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return (false, "Mật khẩu xác nhận không khớp.");
+
+            var email = _jwt.ValidateAndGetEmailFromResetToken(token);
+            if (string.IsNullOrWhiteSpace(email))
+                return (false, "Token không hợp lệ hoặc đã hết hạn.");
+
+            var normalizedEmail = NormalizeEmail(email);
+
+            var user = await _userRepo.GetFirstByExpression(u => u.Email == normalizedEmail);
+            if (user == null)
+                return (false, "Người dùng không tồn tại.");
+
+            if (string.IsNullOrWhiteSpace(user.Password))
+                return (false, "Tài khoản này đăng nhập bằng Google, không thể đặt lại mật khẩu theo cách này.");
+
+            user.Password = PasswordHasher.Hash(dto.NewPassword);
+
+            await _userRepo.Update(user);
+
+            var oldTokens = await _refreshRepo.GetAllDataByExpression(
+                r => r.UserId == user.Id && !r.Revoked,
+                0, 0, null, true
+            );
+
+            if (oldTokens.Items != null)
+            {
+                foreach (var item in oldTokens.Items)
+                {
+                    item.Revoked = true;
+                    await _refreshRepo.Update(item);
+                }
+            }
+
+            await _uow.SaveChangeAsync();
+
+            var html = _emailTemplateService.BuildPasswordChangedEmail(user.FullName);
+            await _email.SendEmailAsync(user.Email, "Mật khẩu BikeStore đã được thay đổi", html, true);
+
+            return (true, "Đặt lại mật khẩu thành công.");
+        }
     }
 }

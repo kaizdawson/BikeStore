@@ -25,6 +25,12 @@ namespace BikeStore.Service.Contract
         Task<(bool Success, string Message, string? ErrorType)> LogoutAsync(string refreshToken);
 
         Task<LoginResult> GoogleSignInAsync(string idToken, RoleEnum role, string? ipAddress, string? deviceInfo);
+
+        Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, ChangePasswordDto dto);
+
+        Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto);
+
+        Task<(bool Success, string Message)> ResetPasswordByLinkAsync(string token, ResetPasswordByLinkDto dto);
     }
 
 }

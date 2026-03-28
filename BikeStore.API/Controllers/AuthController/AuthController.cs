@@ -1,8 +1,11 @@
 ﻿using BikeStore.Common.DTOs;
 using BikeStore.Service.Contract;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace BikeStore.API.Controllers.AuthController
 {
@@ -132,6 +135,55 @@ namespace BikeStore.API.Controllers.AuthController
                 message = result.Message,
                 role = result.Role
             });
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            string? userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { message = "Không xác định được người dùng." });
+
+            var result = await _auth.ChangePasswordAsync(userId, dto);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new { message = result.Message });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
+        {
+            var result = await _auth.ForgotPasswordAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new { message = result.Message });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password-by-link")]
+        public async Task<IActionResult> ResetPasswordByLink([FromBody] ResetPasswordByLinkDto dto)
+        {
+            var authHeader = HttpContext.Request.Headers["Authorization"].FirstOrDefault();
+
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                return Unauthorized(new { message = "Thiếu token hoặc định dạng không hợp lệ." });
+
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+
+            var result = await _auth.ResetPasswordByLinkAsync(token, dto);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new { message = result.Message });
         }
 
     }
