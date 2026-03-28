@@ -15,6 +15,10 @@ namespace BikeStore.Service.Implementation
     public interface IJwtService
     {
         (string token, DateTime expiresAt) GenerateAccessToken(User user);
+
+        string GenerateResetPasswordToken(string email);
+        string? ValidateAndGetEmailFromResetToken(string token);
+
     }
 
     public class JwtService : IJwtService
@@ -67,6 +71,64 @@ namespace BikeStore.Service.Implementation
 
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
             return (jwt, expiresAt);
+        }
+
+        public string GenerateResetPasswordToken(string email)
+        {
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_config["JwtSettings:Key"]!));
+
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var claims = new[]
+            {
+        new Claim(JwtRegisteredClaimNames.Email, email),
+        new Claim("type", "reset_password")
+    };
+
+            var token = new JwtSecurityToken(
+                issuer: _config["JwtSettings:Issuer"],
+                audience: _config["JwtSettings:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(15),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public string? ValidateAndGetEmailFromResetToken(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.UTF8.GetBytes(_config["JwtSettings:Key"]!);
+
+            try
+            {
+                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = _config["JwtSettings:Issuer"],
+
+                    ValidateAudience = true,
+                    ValidAudience = _config["JwtSettings:Audience"],
+
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                }, out _);
+
+                var type = principal.FindFirst("type")?.Value;
+                if (type != "reset_password")
+                    return null;
+
+                return principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

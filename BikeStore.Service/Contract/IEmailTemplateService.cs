@@ -19,5 +19,8 @@ namespace BikeStore.Service.Contract
         string BuildPaymentSuccessEmail(string? fullName, string orderCode, decimal totalAmount);
 
         string BuildOrderCompletedThankYouEmail(string? fullName, string orderCode);
+
+        string BuildForgotPasswordEmail(string? fullName, string resetLink, int expiredMinutes);
+        string BuildPasswordChangedEmail(string? fullName);
     }
 }

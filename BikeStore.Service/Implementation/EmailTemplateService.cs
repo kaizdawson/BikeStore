@@ -157,5 +157,55 @@ namespace BikeStore.Service.Implementation
 
             return WrapLayout("Cảm ơn bạn đã mua hàng tại BikeStore", content);
         }
+
+
+        public string BuildForgotPasswordEmail(string? fullName, string resetLink, int expiredMinutes)
+        {
+            var name = string.IsNullOrWhiteSpace(fullName) ? "bạn" : fullName;
+
+            var content = $@"
+<p>Xin chào <strong>{name}</strong>,</p>
+<p>BikeStore đã nhận được yêu cầu <strong>đặt lại mật khẩu</strong> cho tài khoản của bạn.</p>
+<p>Vui lòng nhấn vào nút bên dưới để tiếp tục:</p>
+
+<div style='margin:24px 0;text-align:center;'>
+    <a href='{resetLink}'
+       style='display:inline-block;background:#111827;color:#ffffff;
+              padding:14px 24px;border-radius:10px;font-size:16px;
+              font-weight:bold;text-decoration:none;'>
+        Đặt lại mật khẩu
+    </a>
+</div>
+
+<div style='margin-top:16px;padding:14px;background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;'>
+    <strong>Lưu ý:</strong>
+    <div style='margin-top:8px;'>
+        Liên kết này chỉ có hiệu lực trong <strong>{expiredMinutes} phút</strong>.
+    </div>
+</div>
+
+<p style='margin-top:16px;'>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>";
+
+            return WrapLayout("Đặt lại mật khẩu BikeStore", content);
+        }
+
+        public string BuildPasswordChangedEmail(string? fullName)
+        {
+            var name = string.IsNullOrWhiteSpace(fullName) ? "bạn" : fullName;
+
+            var content = $@"
+<p>Xin chào <strong>{name}</strong>,</p>
+<p>Mật khẩu tài khoản <strong>BikeStore</strong> của bạn đã được thay đổi thành công.</p>
+
+<div style='margin-top:16px;padding:14px;background:#ecfdf5;border:1px solid #86efac;border-radius:10px;'>
+    Nếu đây là thao tác của bạn, bạn có thể tiếp tục sử dụng hệ thống bình thường.
+</div>
+
+<p style='margin-top:16px;'>
+    Nếu bạn <strong>không thực hiện</strong> thay đổi này, vui lòng liên hệ hỗ trợ ngay để đảm bảo an toàn tài khoản.
+</p>";
+
+            return WrapLayout("Mật khẩu tài khoản đã được thay đổi", content);
+        }
     }
 }
