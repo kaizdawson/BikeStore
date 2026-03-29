@@ -6,6 +6,7 @@ using BikeStore.Repository.Models;
 using BikeStore.Service.Contract;
 using BikeStore.Service.Helpers;
 using FirebaseAdmin.Auth;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -27,6 +28,7 @@ namespace BikeStore.Service.Implementation
         private readonly IMemoryCache _cache;
         private readonly IEmailTemplateService _emailTemplateService;
         private readonly IConfiguration _config;
+        private readonly ICloudinaryService _cloudinary;
 
         private const int OTP_MINUTES = 2;
         private const int REFRESH_DAYS = 7;
@@ -40,7 +42,8 @@ namespace BikeStore.Service.Implementation
             IEmailService email,
             IMemoryCache cache,
             IEmailTemplateService emailTemplateService,
-            IConfiguration config)
+            IConfiguration config,
+            ICloudinaryService cloudinary)
         {
             _userRepo = userRepo;
             _refreshRepo = refreshRepo;
@@ -50,6 +53,7 @@ namespace BikeStore.Service.Implementation
             _cache = cache;
             _emailTemplateService = emailTemplateService;
             _config = config;
+            _cloudinary = cloudinary;
         }
 
         private static string NormalizeEmail(string email) => email.Trim().ToLower();
@@ -576,5 +580,49 @@ namespace BikeStore.Service.Implementation
 
             return (true, "Đặt lại mật khẩu thành công.");
         }
+
+        public async Task<GetMeDto?> GetMeAsync(Guid userId)
+        {
+            var user = await _userRepo.GetById(userId);
+
+            if (user == null || user.IsDeleted)
+                return null;
+
+            return new GetMeDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FullName = user.FullName,
+                PhoneNumber = user.PhoneNumber,
+                AvtUrl = user.AvtUrl,
+                WalletBalance = user.WalletBalance,
+                Role = user.Role.ToString()
+            };
+        }
+
+        public async Task<(bool Success, string Message, string? AvtUrl)> UploadAvatarAsync(Guid userId, IFormFile file)
+        {
+            var user = await _userRepo.GetById(userId);
+            if (user == null)
+                return (false, "Người dùng không tồn tại.", null);
+
+            try
+            {
+                var url = await _cloudinary.UploadAvatarAsync(userId, file);
+
+                user.AvtUrl = url;
+                user.UpdatedAt = DateTimeHelper.NowVN();
+
+                await _userRepo.Update(user);
+                await _uow.SaveChangeAsync();
+
+                return (true, "Upload avatar thành công.", url);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, null);
+            }
+        }
+
     }
 }

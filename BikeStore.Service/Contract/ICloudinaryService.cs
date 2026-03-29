@@ -12,5 +12,7 @@ namespace BikeStore.Service.Contract
     {
         Task<SellerMediaDto> UploadBikeImageAndSaveAsync(Guid sellerId, Guid bikeId, IFormFile file);
         Task<SellerMediaDto> UploadBikeVideoAndSaveAsync(Guid sellerId, Guid bikeId, IFormFile file);
+
+        Task<string> UploadAvatarAsync(Guid userId, IFormFile file);
     }
 }
