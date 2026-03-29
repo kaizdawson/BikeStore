@@ -160,4 +160,33 @@ public class CloudinaryService : ICloudinaryService
 
         return res.SecureUrl.ToString();
     }
+
+    public async Task<string> UploadAvatarAsync(Guid userId, IFormFile file)
+    {
+        ValidateFile(file, maxMb: 5);
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+        if (!allowed.Contains(file.ContentType))
+            throw new InvalidOperationException("Chỉ cho phép ảnh JPG/PNG/WEBP.");
+
+        var folder = $"bikestore/users/{userId}/avatar";
+
+        await using var stream = file.OpenReadStream();
+
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(file.FileName, stream),
+            Folder = folder,
+            UseFilename = true,
+            UniqueFilename = true,
+            Overwrite = true 
+        };
+
+        var res = await _cloudinary.UploadAsync(uploadParams);
+
+        if (res.Error != null)
+            throw new InvalidOperationException("Upload avatar thất bại: " + res.Error.Message);
+
+        return res.SecureUrl.ToString();
+    }
 }

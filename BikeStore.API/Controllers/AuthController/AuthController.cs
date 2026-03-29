@@ -186,5 +186,45 @@ namespace BikeStore.API.Controllers.AuthController
             return Ok(new { message = result.Message });
         }
 
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMe()
+        {
+            string? userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { message = "Không xác định được người dùng." });
+
+            var result = await _auth.GetMeAsync(userId);
+
+            if (result == null)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("upload-avatar")]
+        public async Task<IActionResult> UploadAvatar(IFormFile file)
+        {
+            string? userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { message = "Không xác định được người dùng." });
+
+            var (success, message, url) = await _auth.UploadAvatarAsync(userId, file);
+
+            if (!success)
+                return BadRequest(new { message });
+
+            return Ok(new
+            {
+                message,
+                avatarUrl = url
+            });
+        }
     }
 }

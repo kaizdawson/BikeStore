@@ -1,5 +1,6 @@
 ﻿using BikeStore.Common.DTOs;
 using BikeStore.Common.Enums;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using System;
 using System.Collections.Generic;
@@ -31,6 +32,11 @@ namespace BikeStore.Service.Contract
         Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto);
 
         Task<(bool Success, string Message)> ResetPasswordByLinkAsync(string token, ResetPasswordByLinkDto dto);
+
+        Task<GetMeDto?> GetMeAsync(Guid userId);
+
+        Task<(bool Success, string Message, string? AvtUrl)> UploadAvatarAsync(Guid userId, IFormFile file);
+
     }
 
 }
