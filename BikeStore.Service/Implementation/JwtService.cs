@@ -75,9 +75,14 @@ namespace BikeStore.Service.Implementation
 
         public string GenerateResetPasswordToken(string email)
         {
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_config["JwtSettings:Key"]!));
+            var secret = _config["JWT:Secret"];
+            var issuer = _config["JWT:ValidIssuer"];
+            var audience = _config["JWT:ValidAudience"];
 
+            if (string.IsNullOrWhiteSpace(secret))
+                throw new InvalidOperationException("JWT:Secret is missing in configuration.");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
@@ -87,8 +92,8 @@ namespace BikeStore.Service.Implementation
     };
 
             var token = new JwtSecurityToken(
-                issuer: _config["JwtSettings:Issuer"],
-                audience: _config["JwtSettings:Audience"],
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
@@ -100,17 +105,25 @@ namespace BikeStore.Service.Implementation
         public string? ValidateAndGetEmailFromResetToken(string token)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_config["JwtSettings:Key"]!);
+
+            var secret = _config["JWT:Secret"];
+            var issuer = _config["JWT:ValidIssuer"];
+            var audience = _config["JWT:ValidAudience"];
+
+            if (string.IsNullOrWhiteSpace(secret))
+                return null;
+
+            var key = Encoding.UTF8.GetBytes(secret);
 
             try
             {
                 var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = _config["JwtSettings:Issuer"],
+                    ValidIssuer = issuer,
 
                     ValidateAudience = true,
-                    ValidAudience = _config["JwtSettings:Audience"],
+                    ValidAudience = audience,
 
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
