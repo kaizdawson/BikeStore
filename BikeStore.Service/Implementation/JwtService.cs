@@ -136,7 +136,8 @@ namespace BikeStore.Service.Implementation
                 if (type != "reset_password")
                     return null;
 
-                return principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+                return principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value
+    ?? principal.FindFirst(ClaimTypes.Email)?.Value;
             }
             catch
             {
