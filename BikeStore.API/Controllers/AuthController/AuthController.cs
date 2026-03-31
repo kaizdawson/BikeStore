@@ -169,14 +169,12 @@ namespace BikeStore.API.Controllers.AuthController
 
         [AllowAnonymous]
         [HttpPost("reset-password-by-link")]
-        public async Task<IActionResult> ResetPasswordByLink([FromBody] ResetPasswordByLinkDto dto)
+        public async Task<IActionResult> ResetPasswordByLink(
+    [FromQuery] string token,
+    [FromBody] ResetPasswordByLinkDto dto)
         {
-            var authHeader = HttpContext.Request.Headers["Authorization"].FirstOrDefault();
-
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "Thiếu token hoặc định dạng không hợp lệ." });
-
-            var token = authHeader.Substring("Bearer ".Length).Trim();
+            if (string.IsNullOrWhiteSpace(token))
+                return BadRequest(new { message = "Token không được để trống." });
 
             var result = await _auth.ResetPasswordByLinkAsync(token, dto);
 
